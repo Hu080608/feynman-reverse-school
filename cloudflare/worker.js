@@ -150,6 +150,17 @@ function refreshSession(session, now, startTime) {
     const g = session.grants[0];
     if (g.type === "time") {
       if (!g.activeAt) {
+        if (g.pausedRemainingMs != null) {
+          if (startTime) {
+            startTimeGrant(g, now);
+            g.expiresAt = now + Number(g.pausedRemainingMs);
+            g.pausedRemainingMs = null;
+            changed = true;
+          } else {
+            g.status = "paused";
+          }
+          break;
+        }
         if (startTime) {
           startTimeGrant(g, now);
           changed = true;
@@ -211,21 +222,24 @@ function statusPayload(session, now) {
   const current = session.grants && session.grants[0] ? session.grants[0] : null;
   const queue = (session.grants || []).map(g => {
     const item = { id: g.id, pid: g.pid, pname: g.pname, type: g.type, status: g.status };
-    if (g.type === "time") item.remainingMs = g.activeAt && g.expiresAt ? Math.max(0, Number(g.expiresAt) - now) : null;
+    if (g.type === "time") item.remainingMs = g.pausedRemainingMs != null ? Number(g.pausedRemainingMs) : (g.activeAt && g.expiresAt ? Math.max(0, Number(g.expiresAt) - now) : null);
     else item.remainingUses = Number(g.remainingUses || 0);
     return item;
   });
   let remainingMs = null;
   let remainingUses = null;
-  if (current && current.type === "time" && current.activeAt && current.expiresAt) {
-    remainingMs = Math.max(0, Number(current.expiresAt) - now);
+  if (current && current.type === "time") {
+    if (current.pausedRemainingMs != null) remainingMs = Number(current.pausedRemainingMs);
+    else if (current.activeAt && current.expiresAt) remainingMs = Math.max(0, Number(current.expiresAt) - now);
   }
   if (current && current.type === "count") remainingUses = Number(current.remainingUses || 0);
-  const pendingTime = !!(current && current.type === "time" && !current.activeAt);
+  const pendingTime = !!(current && current.type === "time" && current.status === "pending");
+  const pausedTime = !!(current && current.type === "time" && current.status === "paused");
   return {
     active: !!(current && current.status === "active" && !session.closing),
     available: !!(current && !session.closing),
     pendingTime: pendingTime,
+    pausedTime: pausedTime,
     closing: !!session.closing,
     inConversation: !!session.inConversation,
     current: current ? {
@@ -498,6 +512,12 @@ async function handleChat(request, env) {
   } else {
     for (const m of cleaned) messages.push(m);
   }
+  if (body.hint) {
+    messages.push({
+      role: "system",
+      content: "用户请求提示：请以学生身份，把你上一轮提出的问题解释清楚，用更简单的方式并举一个例子；不要直接替用户总结整个知识点，解释完后再问一个检测理解的小问题。"
+    });
+  }
 
   const upstream = await fetch(joinUrl(env.DEEPSEEK_BASE_URL || "https://api.deepseek.com", "chat/completions"), {
     method: "POST",
@@ -570,6 +590,28 @@ async function handleChat(request, env) {
   });
 }
 
+async function handlePause(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const token = String(body.token || "");
+  if (!token) return json({ ok: false, error: "TOKEN_REQUIRED" }, 400, env);
+  const session = await kvGetJson(env, "session:" + token);
+  if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新输入激活码。" }, 404, env);
+  const now = Date.now();
+  refreshSession(session, now, false);
+  const g = session.grants && session.grants[0];
+  if (g && g.type === "time" && g.activeAt && g.expiresAt && now < Number(g.expiresAt)) {
+    g.pausedRemainingMs = Math.max(0, Number(g.expiresAt) - now);
+    g.activeAt = null;
+    g.expiresAt = null;
+    g.status = "paused";
+  }
+  session.inConversation = false;
+  session.updatedAt = now;
+  await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
+  return json({ ok: true, status: statusPayload(session, now) }, 200, env);
+}
+
 async function handleStart(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
@@ -611,6 +653,7 @@ async function handleRequest(request, env) {
   }
   if (path === "/api/redeem" && request.method === "POST") return handleRedeem(request, env);
   if (path === "/api/status" && request.method === "POST") return handleStatus(request, env);
+  if (path === "/api/pause" && request.method === "POST") return handlePause(request, env);
   if (path === "/api/start" && request.method === "POST") return handleStart(request, env);
   if (path === "/api/chat" && request.method === "POST") return handleChat(request, env);
   if (path === "/api/end" && request.method === "POST") return handleEnd(request, env);

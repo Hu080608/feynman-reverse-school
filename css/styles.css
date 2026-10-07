@@ -426,3 +426,12 @@ body.page-chat .chat-head{flex:0 0 auto!important}
   font-size:12px;
   letter-spacing:.3px;
 }
+
+/* OCR 排版预览 */
+.ocr-preview{
+  min-height:70px;margin-top:8px;padding:12px 14px;border-radius:12px;
+  background:rgba(8,13,28,.75);border:1px solid var(--line);color:#dbe7ff;
+  line-height:1.75;overflow-wrap:anywhere;
+}
+.ocr-preview p{margin:0 0 8px; }
+.ocr-preview p:last-child{margin-bottom:0}

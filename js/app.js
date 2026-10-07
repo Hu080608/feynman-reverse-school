@@ -13,9 +13,9 @@
     openSessionBtn: $("openSessionBtn"), activationCode: $("activationCode"), activateBtn: $("activateBtn"),
     activationMsg: $("activationMsg"), masteryBar: $("masteryBar"), masteryText: $("masteryText"),
     passBadge: $("passBadge"), queueInfo: $("queueInfo"), imageInput: $("imageInput"), ocrBtn: $("ocrBtn"), ocrStatus: $("ocrStatus"),
-    ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), chatTitle: $("chatTitle"),
+    ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), ocrPreview: $("ocrPreview"), chatTitle: $("chatTitle"),
     chatSubtitle: $("chatSubtitle"), chatMessages: $("chatMessages"), apiError: $("apiError"),
-    userInput: $("userInput"), sendBtn: $("sendBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"),
+    userInput: $("userInput"), sendBtn: $("sendBtn"), hintBtn: $("hintBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"), pauseExitBtn: $("pauseExitBtn"), resumePausedBtn: $("resumePausedBtn"),
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), toast: $("toast"),
     sidebar: $("sidebar"), sidebarToggle: $("sidebarToggle"), sidebarClose: $("sidebarClose"),
     sidebarBackdrop: $("sidebarBackdrop"), lockHint: $("lockHint"), backSettingsBtn: $("backSettingsBtn"),
@@ -171,10 +171,20 @@
     if (els.learningGoal) els.learningGoal.disabled = false;
     if (els.newChatBtn) els.newChatBtn.disabled = !active;
     if (els.sendBtn) els.sendBtn.disabled = readonly || !active || sending || closing;
+    if (els.hintBtn) els.hintBtn.disabled = readonly || !active || sending || closing;
     if (els.retryBtn) els.retryBtn.disabled = readonly || !active || sending;
     if (els.userInput) els.userInput.disabled = readonly || !active || closing;
     if (els.continueBtn) els.continueBtn.disabled = sessionCount === 0;
     if (els.openSessionBtn) els.openSessionBtn.disabled = sessionCount === 0;
+    if (els.resumePausedBtn) {
+      const st = state.backendStatus;
+      const paused = !!(st && st.pausedTime && s && !s.endedAt);
+      els.resumePausedBtn.classList.toggle("hidden", !paused);
+    }
+    if (els.pauseExitBtn) {
+      els.pauseExitBtn.classList.toggle("hidden", readonly);
+      els.pauseExitBtn.disabled = readonly || !active;
+    }
     if (els.lockHint) {
       if (readonly) {
         els.lockHint.textContent = "只读模式：历史对话仅查看，不消耗额度，也不能继续发送。";
@@ -402,6 +412,9 @@
         if (c.status === "pending") {
           els.timePill.textContent = "待开始：进入对话后计时";
           els.timePill.className = "pill warn";
+        } else if (c.status === "paused") {
+          els.timePill.textContent = "已暂停：剩余 " + formatDuration(Number(c.remainingMs || 0));
+          els.timePill.className = "pill warn";
         } else {
           let ms = Number(c.remainingMs || 0);
           if (state.backendStatusAt) ms = Math.max(0, ms - (Date.now() - state.backendStatusAt));
@@ -489,7 +502,7 @@
   }
 
   /* ---------------- 与大模型交互 ---------------- */
-  async function requestAi(s, isStart) {
+  async function requestAi(s, isStart, hint) {
     if (sending) return;
     if (!backendReady() || !state.backendToken) {
       els.activationMsg.textContent = "❌ 当前没有后端登录状态，请先输入激活码。";
@@ -523,7 +536,8 @@
         knowledgePoint: s.knowledgePoint || "",
         learningGoal: s.learningGoal || "",
         messages: history,
-        start: !!isStart
+        start: !!isStart,
+        hint: !!hint
       }, (delta, full) => {
         streamMsg.content = full;
         body.innerHTML = renderMarkdown(stripAiMarkers(full));
@@ -566,6 +580,22 @@
     }
   }
 
+  async function requestHint() {
+    if (isReadonlyMode()) { toast("只读模式：不能继续发送。"); return; }
+    if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
+    if (sending) return;
+    const s = currentSession();
+    if (!s) { toast("当前没有对话。"); return; }
+    const hasAssistant = s.messages.some(m => m.role === "assistant" && m.content);
+    if (!hasAssistant) { toast("AI 还没有提出问题。"); return; }
+    const text = "我有点没懂。请你解释一下你上一轮提出的问题，用更简单的方式并举例。";
+    s.messages.push({ role: "user", content: text, ts: Date.now() });
+    els.userInput.value = "";
+    touchSession(s);
+    renderChat();
+    await requestAi(s, false, true);
+  }
+
   async function send() {
     if (isReadonlyMode()) { toast("只读模式：历史对话仅查看，不能继续发送。"); return; }
     const s = ensureSession();
@@ -603,6 +633,13 @@
     const p = Math.max(0, Math.min(100, Math.round(pct)));
     if (els.ocrProgressBar) els.ocrProgressBar.style.width = p + "%";
     if (els.ocrProgressText) els.ocrProgressText.textContent = text || (p + "%");
+  }
+
+  function renderOcrPreview() {
+    if (!els.ocrPreview) return;
+    const text = els.ocrText.value || "";
+    els.ocrPreview.innerHTML = renderMarkdown(text);
+    renderMath(els.ocrPreview);
   }
 
   async function fetchLanguageWithProgress(url, label, startPct, endPct) {
@@ -671,6 +708,7 @@
         }
       });
       els.ocrText.value = (result && result.data && result.data.text ? result.data.text : "").trim();
+      renderOcrPreview();
       setOcrProgress(100, "识别完成");
       els.ocrStatus.textContent = els.ocrText.value ? "识别完成，请检查并修改下方文字。" : "没有识别到文字，请换一张更清晰的图片。";
     } catch (e) {
@@ -728,6 +766,7 @@
     }
     if (els.activateBtn) els.activateBtn.addEventListener("click", activateCode);
     if (els.sendBtn) els.sendBtn.addEventListener("click", send);
+    if (els.hintBtn) els.hintBtn.addEventListener("click", requestHint);
     if (els.retryBtn) els.retryBtn.addEventListener("click", retryLast);
     if (els.userInput) {
       els.userInput.addEventListener("keydown", (e) => {
@@ -735,6 +774,31 @@
       });
     }
     if (els.backSettingsBtn) els.backSettingsBtn.addEventListener("click", showSettings);
+    if (els.pauseExitBtn) {
+      els.pauseExitBtn.addEventListener("click", async () => {
+        if (!backendReady() || !state.backendToken) { location.href = "index.html"; return; }
+        try {
+          const res = await B.pause(state.backendToken);
+          state.backendStatus = res.status || state.backendStatus;
+          state.backendStatusAt = Date.now();
+          saveState();
+        } catch (e) {
+          toast(e && e.message ? e.message : "暂停失败");
+        }
+        clearReadonlyMode();
+        location.href = "index.html";
+      });
+    }
+    if (els.resumePausedBtn) {
+      els.resumePausedBtn.addEventListener("click", () => {
+        const s = currentSession();
+        if (!s) { toast("没有可继续的对话。"); return; }
+        if (s.endedAt) { toast("该对话已彻底结束，不能继续。"); return; }
+        if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
+        clearReadonlyMode();
+        location.href = "chat.html";
+      });
+    }
     if (els.endSessionBtn) {
       els.endSessionBtn.addEventListener("click", async () => {
         const s = currentSession();
@@ -755,6 +819,7 @@
         location.href = "index.html";
       });
     }
+    if (els.ocrText) els.ocrText.addEventListener("input", renderOcrPreview);
     if (els.ocrBtn) els.ocrBtn.addEventListener("click", runOcr);
     if (els.insertOcrBtn) {
       els.insertOcrBtn.addEventListener("click", () => {
