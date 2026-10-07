@@ -19,7 +19,8 @@
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), toast: $("toast"),
     sidebar: $("sidebar"), sidebarToggle: $("sidebarToggle"), sidebarClose: $("sidebarClose"),
     sidebarBackdrop: $("sidebarBackdrop"), lockHint: $("lockHint"), backSettingsBtn: $("backSettingsBtn"),
-    setupStep1: $("setupStep1"), setupStep2: $("setupStep2"), setupStep3: $("setupStep3"), setupHint: $("setupHint")
+    setupStep1: $("setupStep1"), setupStep2: $("setupStep2"), setupStep3: $("setupStep3"), setupHint: $("setupHint"),
+    resumeChatBtn: $("resumeChatBtn")
   };
 
   let state = loadState();
@@ -155,19 +156,9 @@
     if (!s) return;
     state.currentSessionId = s.id;
     saveState(); renderAll();
-    if (backendActive()) {
-      if (s.endedAt) {
-        if (!confirm("这个对话之前已经结束。是否重新打开并继续？")) return;
-        s.endedAt = null;
-        touchSession(s);
-      }
-      clearReadonlyMode();
-      if (!canEnterChat()) return;
-      location.href = "chat.html";
-    } else {
-      sessionStorage.setItem("feynman_readonly", "1");
-      location.href = "chat.html";
-    }
+    // 从历史记录打开的一律先进入只读模式；是否继续由用户在聊天页决定。
+    sessionStorage.setItem("feynman_readonly", "1");
+    location.href = "chat.html";
   }
   function updateControls() {
     const active = backendActive();
@@ -185,6 +176,10 @@
     if (els.userInput) els.userInput.disabled = readonly || !active || closing;
     if (els.continueBtn) els.continueBtn.disabled = sessionCount === 0;
     if (els.openSessionBtn) els.openSessionBtn.disabled = sessionCount === 0;
+    if (els.resumeChatBtn) {
+      const canResume = readonly && active && !!s;
+      els.resumeChatBtn.classList.toggle("hidden", !canResume);
+    }
     if (els.lockHint) {
       if (readonly) {
         els.lockHint.textContent = "只读模式：正在查看历史对话。激活或加时后才能继续发送。";
@@ -683,6 +678,22 @@
       });
     }
     if (els.backSettingsBtn) els.backSettingsBtn.addEventListener("click", showSettings);
+    if (els.resumeChatBtn) {
+      els.resumeChatBtn.addEventListener("click", async () => {
+        const s = currentSession();
+        if (!s) return;
+        if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
+        if (s.endedAt) {
+          if (!confirm("这个对话之前已经结束，是否继续？")) return;
+          s.endedAt = null;
+          touchSession(s);
+        }
+        clearReadonlyMode();
+        document.body.classList.remove("readonly-mode");
+        updateControls();
+        await startChatSession();
+      });
+    }
     if (els.endSessionBtn) {
       els.endSessionBtn.addEventListener("click", async () => {
         const s = currentSession();
