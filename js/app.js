@@ -16,7 +16,7 @@
     ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), ocrPreview: $("ocrPreview"), chatTitle: $("chatTitle"),
     chatSubtitle: $("chatSubtitle"), chatMessages: $("chatMessages"), apiError: $("apiError"),
     userInput: $("userInput"), sendBtn: $("sendBtn"), hintBtn: $("hintBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"), pauseExitBtn: $("pauseExitBtn"), resumePausedBtn: $("resumePausedBtn"),
-    licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), toast: $("toast"),
+    licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), balancePanel: $("balancePanel"), toast: $("toast"),
     sidebar: $("sidebar"), sidebarToggle: $("sidebarToggle"), sidebarClose: $("sidebarClose"),
     sidebarBackdrop: $("sidebarBackdrop"), lockHint: $("lockHint"), backSettingsBtn: $("backSettingsBtn"),
     setupStep1: $("setupStep1"), setupStep2: $("setupStep2"), setupStep3: $("setupStep3"), setupHint: $("setupHint")
@@ -150,6 +150,23 @@
   function showSettings() {
     clearReadonlyMode();
     location.href = "index.html";
+  }
+  function pauseBeforeLeave() {
+    if (PAGE !== "chat" || !backendReady() || !state.backendToken || isReadonlyMode()) return;
+    try {
+      const url = B.baseUrl() + "/api/pause";
+      const body = JSON.stringify({ token: state.backendToken });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([body], { type: "text/plain" }));
+        return;
+      }
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: body,
+        keepalive: true
+      });
+    } catch (e) {}
   }
   function openSessionAction(s) {
     if (!s) return;
@@ -444,6 +461,21 @@
         els.queueInfo.textContent = "";
       }
     }
+    if (els.balancePanel) {
+      if (!q.length) {
+        els.balancePanel.innerHTML = '<div class="balance-title">全部余额</div><div class="balance-item"><span>暂无可用套餐</span></div>';
+      } else {
+        els.balancePanel.innerHTML = '<div class="balance-title">全部余额</div>' + q.map(g => {
+          const name = escapeHtml(g.pname || g.pid || "套餐");
+          const type = g.type === "time" ? "时长" : "次数";
+          const rem = g.type === "time"
+            ? (g.remainingMs != null ? formatDuration(Number(g.remainingMs)) : "待开始")
+            : (g.remainingUses != null ? g.remainingUses + " 次" : "-");
+          const status = g.status === "active" ? "使用中" : (g.status === "paused" ? "已暂停" : (g.status === "pending" ? "排队中" : "已用完"));
+          return '<div class="balance-item"><span>' + name + '</span><b>' + rem + '</b><em>' + type + ' · ' + status + '</em></div>';
+        }).join("");
+      }
+    }
     updateControls();
   }
 
@@ -489,7 +521,11 @@
       saveState();
       els.activationCode.value = "";
       const current = state.backendStatus && state.backendStatus.current;
-      els.activationMsg.textContent = "激活成功：" + ((current && (current.pname || current.pid)) || "服务已到账") + "。";
+      const q = (state.backendStatus && state.backendStatus.queue) || [];
+      let extra = "";
+      if (q.length > 1) extra = " 已加入套餐队列，第 " + q.length + " 个生效。";
+      else if (current && current.type !== "time") extra = " 已加入余额。";
+      els.activationMsg.textContent = "激活成功：" + ((current && (current.pname || current.pid)) || "服务已到账") + "。" + extra;
       renderTimer();
       toast("激活/加时成功");
       closeSidebar();
@@ -754,7 +790,13 @@
       els.continueBtn.addEventListener("click", () => {
         const list = listSessions();
         if (!list.length) { toast("还没有历史对话。"); return; }
-        openSessionAction(list[0]);
+        const s = list[0];
+        state.currentSessionId = s.id;
+        saveState(); renderAll();
+        if (s.endedAt) { toast("该对话已彻底结束，不能继续。请开始新对话。"); return; }
+        if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
+        clearReadonlyMode();
+        location.href = "chat.html";
       });
     }
     if (els.openSessionBtn) {
@@ -762,6 +804,12 @@
         const id = els.sessionSelect.value;
         if (!id || !state.sessions[id]) { toast("请选择一条对话。"); return; }
         openSessionAction(state.sessions[id]);
+      });
+    }
+    if (els.timePill && els.balancePanel) {
+      els.timePill.addEventListener("click", (e) => {
+        e.stopPropagation();
+        els.balancePanel.classList.toggle("hidden");
       });
     }
     if (els.activateBtn) els.activateBtn.addEventListener("click", activateCode);
@@ -836,6 +884,8 @@
       });
     }
     window.addEventListener("beforeunload", saveState);
+    window.addEventListener("pagehide", pauseBeforeLeave);
+    window.addEventListener("beforeunload", pauseBeforeLeave);
   }
 
   function init() {

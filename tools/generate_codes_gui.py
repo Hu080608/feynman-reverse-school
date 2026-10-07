@@ -11,7 +11,7 @@ import customtkinter as ctk
 from PIL import Image
 
 AUTHOR = "胡胜杰"
-VERSION = "v1.3.1"
+VERSION = "v1.3.2"
 APP_TITLE = f"费曼反向学校 · 激活码生成器 {VERSION}"
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -179,6 +179,12 @@ class App(ctk.CTk):
 
     def _sync_type(self, *_):
         is_time = self.typ.get().startswith("时长")
+        if is_time:
+            self.pid.set("trial_1h")
+            self.pname.set("体验装-1小时")
+        else:
+            self.pid.set("count_20")
+            self.pname.set("次数装-20次")
         if is_time:
             self.duration_label.grid()
             self.duration_entry.grid()

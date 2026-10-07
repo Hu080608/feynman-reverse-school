@@ -435,3 +435,18 @@ body.page-chat .chat-head{flex:0 0 auto!important}
 }
 .ocr-preview p{margin:0 0 8px; }
 .ocr-preview p:last-child{margin-bottom:0}
+
+/* 右上角全部余额 */
+.balance-panel{
+  position:absolute;right:16px;top:64px;z-index:50;width:min(92vw,380px);
+  background:linear-gradient(180deg,rgba(16,26,48,.99),rgba(9,14,29,.99));
+  border:1px solid var(--line);border-radius:16px;box-shadow:0 22px 60px rgba(0,0,0,.55);
+  padding:12px;font-size:13px;
+}
+.balance-panel.hidden{display:none}
+.balance-title{font-weight:800;color:#dbe7ff;margin-bottom:8px}
+.balance-item{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:8px 0;border-top:1px solid rgba(35,50,86,.65)}
+.balance-item:first-of-type{border-top:none}
+.balance-item span{color:#dbe7ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.balance-item b{color:#9ef0b5;text-align:right}
+.balance-item em{grid-column:1/-1;color:#879bca;font-style:normal;font-size:11px}

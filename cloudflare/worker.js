@@ -634,12 +634,20 @@ async function handleEnd(request, env) {
   if (!token) return json({ ok: false, error: "TOKEN_REQUIRED" }, 400, env);
   const session = await kvGetJson(env, "session:" + token);
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND" }, 404, env);
+  const now = Date.now();
+  const g = session.grants && session.grants[0];
+  if (g && g.type === "time" && g.activeAt && g.expiresAt && now < Number(g.expiresAt)) {
+    g.pausedRemainingMs = Math.max(0, Number(g.expiresAt) - now);
+    g.activeAt = null;
+    g.expiresAt = null;
+    g.status = "paused";
+  }
   session.inConversation = false;
   session.closing = false;
-  session.updatedAt = Date.now();
-  refreshSession(session, session.updatedAt, false);
+  session.updatedAt = now;
+  refreshSession(session, now, false);
   await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
-  return json({ ok: true, status: statusPayload(session, session.updatedAt) }, 200, env);
+  return json({ ok: true, status: statusPayload(session, now) }, 200, env);
 }
 
 async function handleRequest(request, env) {
