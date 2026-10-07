@@ -361,7 +361,9 @@
     list.forEach(s => {
       const o = document.createElement("option");
       o.value = s.id;
-      o.textContent = (s.knowledgePoint || "未命名知识点") + (s.passed ? " ✅已通关" : "") +
+      const endText = s.endedAt ? "已结束" : "未结束";
+      o.textContent = (s.knowledgePoint || "未命名知识点") + " · " + endText +
+        (s.passed ? " · ✅已通关" : "") +
         " · " + new Date(s.updatedAt || s.createdAt).toLocaleString();
       if (s.id === state.currentSessionId) o.selected = true;
       els.sessionSelect.appendChild(o);
