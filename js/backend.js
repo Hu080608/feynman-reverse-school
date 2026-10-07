@@ -51,6 +51,9 @@
   async function cleanText(token, text) {
     return postJson("/api/clean-text", { token: token, text: text });
   }
+  async function vision(token, image, prompt) {
+    return postJson("/api/vision", { token: token, image: image, prompt: prompt || "" });
+  }
 
   async function chat(token, payload, onDelta) {
     const url = baseUrl() + "/api/chat";
@@ -104,5 +107,5 @@
     return full;
   }
 
-  window.FeynmanBackend = { redeem, login, cleanText, status, start, pause, end, chat, baseUrl };
+  window.FeynmanBackend = { redeem, login, cleanText, vision, status, start, pause, end, chat, baseUrl };
 })();

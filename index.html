@@ -6,7 +6,7 @@
   <title>费曼反向学校｜设置与激活</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdn.npmmirror.com/packages/katex/0.16.11/files/dist/katex.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=21" />
+  <link rel="stylesheet" href="css/styles.css?v=22" />
 </head>
 <body class="page-settings" data-page="settings">
   <header class="topbar">
@@ -57,7 +57,8 @@
       <div class="sub-tools">
         <p class="sub-title">也可以上传图片，自动识别文字填入上面</p>
         <input id="imageInput" type="file" accept="image/*" />
-        <button id="ocrBtn" class="btn small">识别图片文字</button>
+        <button id="ocrBtn" class="btn small">Tesseract 本地识别</button>
+        <button id="deepseekOcrBtn" class="btn small">用 DeepSeek 识图（公式更准）</button>
         <p id="ocrStatus" class="hint"></p>
         <div class="ocr-progress"><div id="ocrProgressBar" class="ocr-progress-inner" style="width:0%"></div></div>
         <p id="ocrProgressText" class="tiny"></p>
@@ -112,6 +113,6 @@
   <script src="js/config.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/backend.js" defer></script>
-  <script src="js/app.js?v=21" defer></script>
+  <script src="js/app.js?v=22" defer></script>
 </body>
 </html>

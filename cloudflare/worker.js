@@ -546,6 +546,52 @@ async function handleChat(request, env) {
   });
 }
 
+async function handleVision(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const token = String(body.token || "");
+  let image = String(body.image || "");
+  const prompt = String(body.prompt || "请识别图片中的文字，数学公式请用 LaTeX 表示，保留原有排版；只输出识别结果。");
+  if (!token) return json({ ok: false, error: "TOKEN_REQUIRED" }, 400, env);
+  const session = await kvGetJson(env, "session:" + token);
+  if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新激活。" }, 404, env);
+  if (!image) return json({ ok: false, error: "IMAGE_REQUIRED", message: "没有收到图片。" }, 400, env);
+  if (!image.startsWith("data:image/")) image = "data:image/jpeg;base64," + image;
+  if (image.length > 8 * 1024 * 1024) return json({ ok: false, error: "IMAGE_TOO_LARGE", message: "图片太大，请压缩后再试。" }, 413, env);
+
+  const model = env.DEEPSEEK_VISION_MODEL || "deepseek-v4-flash-vision-exp";
+  const upstream = await fetch(joinUrl(env.DEEPSEEK_BASE_URL || "https://api.deepseek.com", "chat/completions"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + (env.DEEPSEEK_API_KEY || "")
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: "system", content: "你是 OCR 助手。请识别图片中的文字，把数学公式转为 LaTeX，保留排版结构；只输出识别结果，不要解释。" },
+        { role: "user", content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: image } }
+        ] }
+      ],
+      temperature: 0.1,
+      max_tokens: 2000,
+      stream: false
+    })
+  });
+  if (!upstream.ok) {
+    const errText = await upstream.text().catch(() => "");
+    return json({ ok: false, error: "UPSTREAM_ERROR", message: "DeepSeek 识图失败：" + errText.slice(0, 300) }, 502, env);
+  }
+  const data = await upstream.json().catch(() => null);
+  const text = data && data.choices && data.choices[0] && data.choices[0].message
+    ? String(data.choices[0].message.content || "") : "";
+  if (!text) return json({ ok: false, error: "EMPTY_RESULT", message: "DeepSeek 没有返回识别结果。" }, 502, env);
+  await addSystemLog(env, "info", "vision_ocr", "DeepSeek 识图完成", { model: model });
+  return json({ ok: true, text: text, model: model }, 200, env);
+}
+
 async function handleCleanText(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
@@ -665,6 +711,7 @@ async function handleRequest(request, env) {
   if (path === "/api/redeem" && request.method === "POST") return handleRedeem(request, env);
   if (path === "/api/status" && request.method === "POST") return handleStatus(request, env);
   if (path === "/api/pause" && request.method === "POST") return handlePause(request, env);
+  if (path === "/api/vision" && request.method === "POST") return handleVision(request, env);
   if (path === "/api/clean-text" && request.method === "POST") return handleCleanText(request, env);
   if (path === "/api/login" && request.method === "POST") return handleLogin(request, env);
   if (path === "/api/start" && request.method === "POST") return handleStart(request, env);

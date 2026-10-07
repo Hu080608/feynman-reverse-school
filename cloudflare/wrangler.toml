@@ -19,6 +19,7 @@ id = "4b1d6ca97b1847869f42aa288da60abe"
 ALLOWED_ORIGIN = "*"
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 DEEPSEEK_MODEL = "deepseek-chat"
+DEEPSEEK_VISION_MODEL = "deepseek-v4-flash-vision-exp"
 
 INPUT_PRICE_PER_M = "1"
 OUTPUT_PRICE_PER_M = "2"

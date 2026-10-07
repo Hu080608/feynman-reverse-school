@@ -13,7 +13,7 @@
     openSessionBtn: $("openSessionBtn"), activationCode: $("activationCode"), activateBtn: $("activateBtn"),
     activationMsg: $("activationMsg"), masteryBar: $("masteryBar"), masteryText: $("masteryText"),
     passBadge: $("passBadge"), queueInfo: $("queueInfo"), imageInput: $("imageInput"), ocrBtn: $("ocrBtn"), ocrStatus: $("ocrStatus"),
-    ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), cleanOcrBtn: $("cleanOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), ocrPreview: $("ocrPreview"), chatTitle: $("chatTitle"),
+    ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), cleanOcrBtn: $("cleanOcrBtn"), deepseekOcrBtn: $("deepseekOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), ocrPreview: $("ocrPreview"), chatTitle: $("chatTitle"),
     chatSubtitle: $("chatSubtitle"), chatMessages: $("chatMessages"), apiError: $("apiError"),
     userInput: $("userInput"), sendBtn: $("sendBtn"), hintBtn: $("hintBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"), pauseExitBtn: $("pauseExitBtn"),
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), balancePanel: $("balancePanel"), toast: $("toast"),
@@ -772,6 +772,39 @@
     }
   }
 
+  function fileToDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("读取图片失败"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function deepseekOcr() {
+    const file = els.imageInput.files && els.imageInput.files[0];
+    if (!file) { toast("请先选择一张图片。"); return; }
+    if (!backendReady() || !state.backendToken) { toast("请先激活后再使用 DeepSeek 识图。"); return; }
+    els.deepseekOcrBtn.disabled = true;
+    els.ocrStatus.textContent = "正在读取图片...";
+    setOcrProgress(10, "读取图片...");
+    try {
+      const dataUrl = await fileToDataURL(file);
+      setOcrProgress(40, "正在调用 DeepSeek 识图...");
+      els.ocrStatus.textContent = "DeepSeek 正在识别图片和公式...";
+      const res = await B.vision(state.backendToken, dataUrl, "请识别图片中的文字，数学公式用 LaTeX 表示，保留排版，只输出识别结果。");
+      els.ocrText.value = res.text || "";
+      renderOcrPreview();
+      setOcrProgress(100, "DeepSeek 识图完成");
+      els.ocrStatus.textContent = "DeepSeek 识图完成，请检查并修改下方文字。";
+    } catch (e) {
+      setOcrProgress(0, "DeepSeek 识图失败");
+      els.ocrStatus.textContent = "DeepSeek 识图失败：" + (e && e.message ? e.message : e);
+    } finally {
+      els.deepseekOcrBtn.disabled = false;
+    }
+  }
+
   async function cleanOcr() {
     const text = els.ocrText.value.trim();
     if (!text) { toast("没有可整理的内容。"); return; }
@@ -957,6 +990,7 @@
       });
     }
     if (els.ocrText) els.ocrText.addEventListener("input", renderOcrPreview);
+    if (els.deepseekOcrBtn) els.deepseekOcrBtn.addEventListener("click", deepseekOcr);
     if (els.cleanOcrBtn) els.cleanOcrBtn.addEventListener("click", cleanOcr);
     if (els.ocrBtn) els.ocrBtn.addEventListener("click", runOcr);
     if (els.insertOcrBtn) {
