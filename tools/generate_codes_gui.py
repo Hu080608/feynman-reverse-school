@@ -11,7 +11,7 @@ import customtkinter as ctk
 from PIL import Image
 
 AUTHOR = "胡胜杰"
-VERSION = "v1.3.3"
+VERSION = "v1.3.4"
 APP_TITLE = f"费曼反向学校 · 激活码生成器 {VERSION}"
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -84,6 +84,8 @@ class App(ctk.CTk):
         self.count = tk.StringVar(value="10")
         self.out = tk.StringVar(value=os.path.abspath("codes.csv"))
         self.status_var = tk.StringVar(value="就绪")
+        self.duration.trace_add("write", lambda *_: self._update_product_defaults())
+        self.uses.trace_add("write", lambda *_: self._update_product_defaults())
 
     def _build_ui(self):
         self.grid_columnconfigure(0, weight=1)
@@ -177,14 +179,29 @@ class App(ctk.CTk):
                      font=ctk.CTkFont(family="Microsoft YaHei UI", size=12),
                      text_color="#7f96c9").grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 12))
 
+    def _update_product_defaults(self):
+        if not hasattr(self, "typ"):
+            return
+        if self.typ.get().startswith("时长"):
+            raw = (self.duration.get() or "").strip().lower()
+            m = re.match(r"^(\d+(?:\.\d+)?)\s*(s|sec|m|min|h|hour|d|day)?$", raw)
+            if m:
+                value = m.group(1)
+                unit = m.group(2) or "s"
+                unit_map = {"s": "秒", "sec": "秒", "m": "分钟", "min": "分钟", "h": "小时", "hour": "小时", "d": "天", "day": "天"}
+                unit_key = unit[:1] if unit[:1] in ("s", "m", "h", "d") else "s"
+                self.pid.set("time_" + value + unit_key)
+                self.pname.set("时长装-" + value + unit_map.get(unit, "秒"))
+            else:
+                self.pid.set("time_custom")
+                self.pname.set("自定义时长")
+        else:
+            uses = (self.uses.get() or "").strip()
+            self.pid.set("count_" + uses if uses else "count_custom")
+            self.pname.set("次数装-" + uses + "次" if uses else "自定义次数")
+
     def _sync_type(self, *_):
         is_time = self.typ.get().startswith("时长")
-        if is_time:
-            self.pid.set("trial_1h")
-            self.pname.set("体验装-1小时")
-        else:
-            self.pid.set("count_20")
-            self.pname.set("次数装-20次")
         if is_time:
             self.duration_label.grid()
             self.duration_entry.grid()
@@ -195,6 +212,7 @@ class App(ctk.CTk):
             self.uses_entry.grid()
             self.duration_label.grid_remove()
             self.duration_entry.grid_remove()
+        self._update_product_defaults()
 
     def _choose(self):
         p = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV", "*.csv")])
