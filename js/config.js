@@ -4,6 +4,8 @@
  * 生产环境务必使用自己的受限代理 / 云函数 / Cloudflare Worker 转发大模型请求。
  * ========================================================================= */
 window.APP_CONFIG = {
+  // 产品信息：制作者与版本号（后续迭代只需改这里）
+  APP_INFO: { author: "胡胜杰", version: "v1.3.0" },
   // 后端地址：开发时指向本地 wrangler dev；正式部署后改成你的公网后端地址。
   BACKEND: {
     url: "https://api.feynman-hsj.top"

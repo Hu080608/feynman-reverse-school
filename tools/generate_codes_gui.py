@@ -10,7 +10,9 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 from PIL import Image
 
-APP_TITLE = "费曼反向学校 · 激活码生成器"
+AUTHOR = "胡胜杰"
+VERSION = "v1.3.0"
+APP_TITLE = f"费曼反向学校 · 激活码生成器 {VERSION}"
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -51,6 +53,7 @@ class App(ctk.CTk):
         self._build_vars()
         self._build_ui()
         self._sync_type()
+        self.after(80, self._maximize_window)
 
     def _set_icon(self):
         try:
@@ -58,6 +61,15 @@ class App(ctk.CTk):
         except Exception:
             try:
                 self.iconphoto(True, tk.PhotoImage(file=resource_path("assets/icon.png")))
+            except Exception:
+                pass
+
+    def _maximize_window(self):
+        try:
+            self.state("zoomed")
+        except Exception:
+            try:
+                self.attributes("-zoomed", True)
             except Exception:
                 pass
 
@@ -90,7 +102,7 @@ class App(ctk.CTk):
         ctk.CTkLabel(header, text="费曼反向学校 · 激活码生成器",
                      font=ctk.CTkFont(family="Microsoft YaHei UI", size=24, weight="bold"),
                      text_color="#eef4ff").grid(row=0, column=1, sticky="sw", padx=(0, 18), pady=(16, 0))
-        ctk.CTkLabel(header, text="HMAC-SHA256 v2 · 与 Cloudflare Worker 完全一致 · 兑换后全平台一次核销",
+        ctk.CTkLabel(header, text="HMAC-SHA256 v2 · 与 Cloudflare Worker 完全一致 · 兑换后全平台一次核销 · 制作者：胡胜杰 · v1.3.0",
                      font=ctk.CTkFont(family="Microsoft YaHei UI", size=13),
                      text_color="#8fa6d8").grid(row=1, column=1, sticky="nw", padx=(0, 18), pady=(0, 16))
 
@@ -106,8 +118,10 @@ class App(ctk.CTk):
                      text_color="#dbe7ff").grid(row=0, column=0, columnspan=2, sticky="w", padx=18, pady=(16, 8))
 
         def label(text, r):
-            ctk.CTkLabel(form_card, text=text, font=ctk.CTkFont(family="Microsoft YaHei UI", size=13),
-                         text_color="#a9bbdf").grid(row=r, column=0, sticky="w", padx=(18, 12), pady=7)
+            w = ctk.CTkLabel(form_card, text=text, font=ctk.CTkFont(family="Microsoft YaHei UI", size=13),
+                             text_color="#a9bbdf")
+            w.grid(row=r, column=0, sticky="w", padx=(18, 12), pady=7)
+            return w
 
         def entry(var, r, show=None):
             e = ctk.CTkEntry(form_card, textvariable=var, show=show, height=38,
@@ -124,8 +138,10 @@ class App(ctk.CTk):
         self.type_seg = ctk.CTkSegmentedButton(type_box, values=["时长 time", "次数 count"],
                                                variable=self.typ, command=self._sync_type)
         self.type_seg.pack(anchor="w")
-        label("时长（1h / 1d / 30m）", 5); self.duration_entry = entry(self.duration, 5)
-        label("次数", 6); self.uses_entry = entry(self.uses, 6)
+        self.duration_label = label("时长（1h / 1d / 30m）", 5)
+        self.duration_entry = entry(self.duration, 5)
+        self.uses_label = label("次数", 6)
+        self.uses_entry = entry(self.uses, 6)
         label("激活码有效期（天）", 7); entry(self.valid_days, 7)
         label("生成数量", 8); entry(self.count, 8)
         label("输出 CSV", 9)
@@ -163,8 +179,16 @@ class App(ctk.CTk):
 
     def _sync_type(self, *_):
         is_time = self.typ.get().startswith("时长")
-        self.duration_entry.configure(state="normal" if is_time else "disabled")
-        self.uses_entry.configure(state="disabled" if is_time else "normal")
+        if is_time:
+            self.duration_label.grid()
+            self.duration_entry.grid()
+            self.uses_label.grid_remove()
+            self.uses_entry.grid_remove()
+        else:
+            self.uses_label.grid()
+            self.uses_entry.grid()
+            self.duration_label.grid_remove()
+            self.duration_entry.grid_remove()
 
     def _choose(self):
         p = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV", "*.csv")])

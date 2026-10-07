@@ -417,3 +417,12 @@ body.page-chat .chat-head{flex:0 0 auto!important}
   font-size:11px;font-weight:700;color:#fbd38d;background:rgba(245,158,11,.12);
   border:1px solid rgba(245,158,11,.38);
 }
+
+/* 制作者与版本 */
+.app-meta{
+  margin-top:18px;
+  text-align:center;
+  color:#6f83ad;
+  font-size:12px;
+  letter-spacing:.3px;
+}

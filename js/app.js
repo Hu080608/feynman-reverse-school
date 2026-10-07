@@ -775,6 +775,12 @@
 
   function init() {
     bind();
+    try {
+      const info = cfg.APP_INFO || { author: "胡胜杰", version: "v1.3.0" };
+      document.querySelectorAll("[data-app-meta]").forEach(el => {
+        el.textContent = "制作者：" + info.author + " · 版本 " + info.version;
+      });
+    } catch (e) {}
     if (PAGE === "chat") {
       const s = currentSession();
       if (!s) { location.replace("index.html"); return; }
