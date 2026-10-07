@@ -655,6 +655,8 @@
         corePath: "https://cdn.npmmirror.com/packages/tesseract.js-core/5.1.1/files/",
         langPath: base,
         gzip: true,
+        // 避免 Tesseract 使用 IndexedDB 分段缓存时在 GitHub Pages 上出现 206 卡住
+        cacheMethod: "none",
         logger: m => {
           const status = m.status || "处理中";
           if (status === "recognizing text") {
