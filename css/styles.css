@@ -738,3 +738,28 @@ body.page-chat .chat-head{flex:0 0 auto!important}
     white-space:nowrap!important;
   }
 }
+
+/* 只读提示条 */
+.readonly-banner{
+  display:none;
+  margin:8px 12px 0;
+  padding:9px 12px;
+  border-radius:10px;
+  background:rgba(245,158,11,.12);
+  border:1px solid rgba(245,158,11,.4);
+  color:#fbd38d;
+  font-size:12px;
+  line-height:1.5;
+  text-align:center;
+}
+body.readonly-mode .readonly-banner{
+  display:block!important;
+}
+@media (max-width:640px){
+  body.readonly-mode .readonly-banner{
+    display:block!important;
+    margin:6px 8px 0;
+    font-size:11px;
+    padding:7px 10px;
+  }
+}

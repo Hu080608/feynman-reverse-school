@@ -6,7 +6,7 @@
   <title>费曼反向学校｜设置与激活</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdn.npmmirror.com/packages/katex/0.16.11/files/dist/katex.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=20" />
+  <link rel="stylesheet" href="css/styles.css?v=21" />
 </head>
 <body class="page-settings" data-page="settings">
   <header class="topbar">
@@ -64,6 +64,8 @@
         <label for="ocrText">识别结果（可编辑）</label>
         <textarea id="ocrText" rows="3" placeholder="识别出的文字会显示在这里。"></textarea>
         <button id="insertOcrBtn" class="btn small">填入上面的知识点输入框</button>
+        <button id="cleanOcrBtn" class="btn small">AI 整理为 Markdown / LaTeX</button>
+        <p class="tiny">Tesseract 对公式识别有限；可以点上面按钮，让 AI 把 OCR 结果整理成规范 LaTeX。</p>
         <p class="sub-title" style="margin-top:14px;">排版预览（Markdown / LaTeX）</p>
         <div id="ocrPreview" class="ocr-preview">识别结果会在这里按 Markdown / LaTeX 排版预览。</div>
       </div>
@@ -110,6 +112,6 @@
   <script src="js/config.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/backend.js" defer></script>
-  <script src="js/app.js?v=20" defer></script>
+  <script src="js/app.js?v=21" defer></script>
 </body>
 </html>

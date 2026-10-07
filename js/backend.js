@@ -48,6 +48,10 @@
     return postJson("/api/end", { token: token });
   }
 
+  async function cleanText(token, text) {
+    return postJson("/api/clean-text", { token: token, text: text });
+  }
+
   async function chat(token, payload, onDelta) {
     const url = baseUrl() + "/api/chat";
     let res;
@@ -100,5 +104,5 @@
     return full;
   }
 
-  window.FeynmanBackend = { redeem, login, status, start, pause, end, chat, baseUrl };
+  window.FeynmanBackend = { redeem, login, cleanText, status, start, pause, end, chat, baseUrl };
 })();

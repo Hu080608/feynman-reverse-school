@@ -546,6 +546,44 @@ async function handleChat(request, env) {
   });
 }
 
+async function handleCleanText(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const token = String(body.token || "");
+  const text = String(body.text || "").slice(0, 6000);
+  if (!token) return json({ ok: false, error: "TOKEN_REQUIRED" }, 400, env);
+  if (!text.trim()) return json({ ok: false, error: "EMPTY_TEXT", message: "没有可整理的内容。" }, 400, env);
+  const session = await kvGetJson(env, "session:" + token);
+  if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新激活。" }, 404, env);
+  const upstream = await fetch(joinUrl(env.DEEPSEEK_BASE_URL || "https://api.deepseek.com", "chat/completions"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + (env.DEEPSEEK_API_KEY || "")
+    },
+    body: JSON.stringify({
+      model: env.DEEPSEEK_MODEL || "deepseek-chat",
+      messages: [
+        { role: "system", content: "你是 OCR 公式整理助手。把用户提供的 OCR 文本整理成规范的 Markdown + LaTeX：数学公式用 $...$ 或 $$...$$，不要讲解，不要添加原文没有的内容，只输出整理后的文本。" },
+        { role: "user", content: text }
+      ],
+      temperature: 0.1,
+      max_tokens: 1600,
+      stream: false
+    })
+  });
+  if (!upstream.ok) {
+    const errText = await upstream.text().catch(() => "");
+    return json({ ok: false, error: "UPSTREAM_ERROR", message: "AI 整理失败：" + errText.slice(0, 300) }, 502, env);
+  }
+  const data = await upstream.json().catch(() => null);
+  const cleaned = data && data.choices && data.choices[0] && data.choices[0].message
+    ? String(data.choices[0].message.content || "") : "";
+  if (!cleaned) return json({ ok: false, error: "EMPTY_RESULT", message: "AI 没有返回整理结果。" }, 502, env);
+  await addSystemLog(env, "info", "ocr_clean", "OCR 文本 AI 整理完成", { length: text.length });
+  return json({ ok: true, text: cleaned }, 200, env);
+}
+
 async function handleLogin(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
@@ -627,6 +665,7 @@ async function handleRequest(request, env) {
   if (path === "/api/redeem" && request.method === "POST") return handleRedeem(request, env);
   if (path === "/api/status" && request.method === "POST") return handleStatus(request, env);
   if (path === "/api/pause" && request.method === "POST") return handlePause(request, env);
+  if (path === "/api/clean-text" && request.method === "POST") return handleCleanText(request, env);
   if (path === "/api/login" && request.method === "POST") return handleLogin(request, env);
   if (path === "/api/start" && request.method === "POST") return handleStart(request, env);
   if (path === "/api/chat" && request.method === "POST") return handleChat(request, env);

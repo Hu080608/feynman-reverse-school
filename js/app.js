@@ -13,7 +13,7 @@
     openSessionBtn: $("openSessionBtn"), activationCode: $("activationCode"), activateBtn: $("activateBtn"),
     activationMsg: $("activationMsg"), masteryBar: $("masteryBar"), masteryText: $("masteryText"),
     passBadge: $("passBadge"), queueInfo: $("queueInfo"), imageInput: $("imageInput"), ocrBtn: $("ocrBtn"), ocrStatus: $("ocrStatus"),
-    ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), ocrPreview: $("ocrPreview"), chatTitle: $("chatTitle"),
+    ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), cleanOcrBtn: $("cleanOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), ocrPreview: $("ocrPreview"), chatTitle: $("chatTitle"),
     chatSubtitle: $("chatSubtitle"), chatMessages: $("chatMessages"), apiError: $("apiError"),
     userInput: $("userInput"), sendBtn: $("sendBtn"), hintBtn: $("hintBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"), pauseExitBtn: $("pauseExitBtn"),
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), balancePanel: $("balancePanel"), toast: $("toast"),
@@ -772,6 +772,24 @@
     }
   }
 
+  async function cleanOcr() {
+    const text = els.ocrText.value.trim();
+    if (!text) { toast("没有可整理的内容。"); return; }
+    if (!backendReady() || !state.backendToken) { toast("请先激活后再使用 AI 整理。"); return; }
+    els.cleanOcrBtn.disabled = true;
+    els.ocrStatus.textContent = "AI 正在整理公式...";
+    try {
+      const res = await B.cleanText(state.backendToken, text);
+      els.ocrText.value = res.text || text;
+      renderOcrPreview();
+      els.ocrStatus.textContent = "AI 整理完成，请检查并修改。";
+    } catch (e) {
+      els.ocrStatus.textContent = "AI 整理失败：" + (e && e.message ? e.message : e);
+    } finally {
+      els.cleanOcrBtn.disabled = false;
+    }
+  }
+
   async function runOcr() {
     const file = els.imageInput.files && els.imageInput.files[0];
     if (!file) { toast("请先选择一张图片。"); return; }
@@ -845,7 +863,7 @@
         const kp = els.knowledgePoint.value.trim();
         if (!kp) { toast("请先填写知识点。"); return; }
         const old = currentSession();
-        if (old && old.messages.length && !old.passed && !confirm("当前对话尚未通关。开始新对话后，仍可从下面的记录中打开旧对话。确定继续吗？")) return;
+        if (old && old.messages.length && !old.passed && !old.endedAt && !confirm("当前对话尚未通关。开始新对话后，仍可从下面的记录中打开旧对话。确定继续吗？")) return;
         const s = makeSession(kp, els.learningGoal ? els.learningGoal.value.trim() : "");
         state.currentSessionId = s.id;
         state.sessions[s.id] = s;
@@ -939,6 +957,7 @@
       });
     }
     if (els.ocrText) els.ocrText.addEventListener("input", renderOcrPreview);
+    if (els.cleanOcrBtn) els.cleanOcrBtn.addEventListener("click", cleanOcr);
     if (els.ocrBtn) els.ocrBtn.addEventListener("click", runOcr);
     if (els.insertOcrBtn) {
       els.insertOcrBtn.addEventListener("click", () => {
