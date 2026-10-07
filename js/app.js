@@ -15,7 +15,7 @@
     passBadge: $("passBadge"), queueInfo: $("queueInfo"), imageInput: $("imageInput"), ocrBtn: $("ocrBtn"), ocrStatus: $("ocrStatus"),
     ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), ocrPreview: $("ocrPreview"), chatTitle: $("chatTitle"),
     chatSubtitle: $("chatSubtitle"), chatMessages: $("chatMessages"), apiError: $("apiError"),
-    userInput: $("userInput"), sendBtn: $("sendBtn"), hintBtn: $("hintBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"), pauseExitBtn: $("pauseExitBtn"), resumePausedBtn: $("resumePausedBtn"),
+    userInput: $("userInput"), sendBtn: $("sendBtn"), hintBtn: $("hintBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"), pauseExitBtn: $("pauseExitBtn"),
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), balancePanel: $("balancePanel"), toast: $("toast"),
     sidebar: $("sidebar"), sidebarToggle: $("sidebarToggle"), sidebarClose: $("sidebarClose"),
     sidebarBackdrop: $("sidebarBackdrop"), lockHint: $("lockHint"), backSettingsBtn: $("backSettingsBtn"),
@@ -192,13 +192,15 @@
     if (els.hintBtn) els.hintBtn.disabled = readonly || !active || sending || closing;
     if (els.retryBtn) els.retryBtn.disabled = readonly || !active || sending;
     if (els.userInput) els.userInput.disabled = readonly || !active || closing;
-    if (els.continueBtn) els.continueBtn.disabled = sessionCount === 0;
-    if (els.openSessionBtn) els.openSessionBtn.disabled = sessionCount === 0;
-    if (els.resumePausedBtn) {
-      const st = state.backendStatus;
-      const paused = !!(st && st.paused && Number(st.timeRemainingMs || 0) > 0 && s && !s.endedAt);
-      els.resumePausedBtn.classList.toggle("hidden", !paused);
+    if (els.continueBtn) {
+      const list = listSessions();
+      const selectedId = els.sessionSelect && els.sessionSelect.value
+        ? els.sessionSelect.value
+        : (state.currentSessionId || (list[0] && list[0].id));
+      const selected = selectedId ? state.sessions[selectedId] : null;
+      els.continueBtn.disabled = !selected || !!selected.endedAt;
     }
+    if (els.openSessionBtn) els.openSessionBtn.disabled = sessionCount === 0;
     if (els.pauseExitBtn) {
       els.pauseExitBtn.classList.toggle("hidden", readonly);
       els.pauseExitBtn.disabled = readonly || !active;
@@ -376,7 +378,7 @@
     const total = Math.max(0, Math.floor(ms / 1000));
     const d = Math.floor(total / 86400), h = Math.floor((total % 86400) / 3600);
     const m = Math.floor((total % 3600) / 60), s = total % 60;
-    if (d > 0) return `${d}天${h}小时${m}分`;
+    if (d > 0) return `${d}天${h}小时${m}分${s}秒`;
     if (h > 0) return `${h}小时${m}分${s}秒`;
     return `${m}分${s}秒`;
   }
@@ -822,7 +824,11 @@
       els.continueBtn.addEventListener("click", () => {
         const list = listSessions();
         if (!list.length) { toast("还没有历史对话。"); return; }
-        const s = list[0];
+        const selectedId = els.sessionSelect && els.sessionSelect.value
+          ? els.sessionSelect.value
+          : list[0].id;
+        const s = state.sessions[selectedId];
+        if (!s) { toast("请选择一条对话。"); return; }
         state.currentSessionId = s.id;
         saveState(); renderAll();
         if (s.endedAt) { toast("该对话已彻底结束，不能继续。请开始新对话。"); return; }
@@ -831,6 +837,7 @@
         location.href = "chat.html";
       });
     }
+    if (els.sessionSelect) els.sessionSelect.addEventListener("change", updateControls);
     if (els.openSessionBtn) {
       els.openSessionBtn.addEventListener("click", () => {
         const id = els.sessionSelect.value;
@@ -875,16 +882,6 @@
         }
         clearReadonlyMode();
         location.href = "index.html";
-      });
-    }
-    if (els.resumePausedBtn) {
-      els.resumePausedBtn.addEventListener("click", () => {
-        const s = currentSession();
-        if (!s) { toast("没有可继续的对话。"); return; }
-        if (s.endedAt) { toast("该对话已彻底结束，不能继续。"); return; }
-        if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
-        clearReadonlyMode();
-        location.href = "chat.html";
       });
     }
     if (els.endSessionBtn) {
