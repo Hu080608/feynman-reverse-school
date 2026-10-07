@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>费曼反向学校｜运营后台</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="admin-body">
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="assets/logo.svg" alt="费曼反向学校" />
+      <div><h1>运营后台</h1><p>兑换记录 · Token 花费 · 系统日志</p></div>
+    </div>
+    <div class="status-pills">
+      <span class="pill" id="adminStatus">未登录</span>
+    </div>
+  </header>
+
+  <main class="admin-layout">
+    <section class="card">
+      <h2>管理员登录</h2>
+      <p class="hint">输入 Cloudflare Worker 环境变量里的 ADMIN_TOKEN。</p>
+      <input id="adminToken" type="password" placeholder="ADMIN_TOKEN" autocomplete="off" />
+      <div class="btn-row">
+        <button id="adminLoginBtn" class="btn primary">验证并进入</button>
+        <button id="adminRefreshBtn" class="btn">刷新数据</button>
+      </div>
+      <p id="adminMsg" class="hint"></p>
+    </section>
+
+    <section class="admin-stats" id="adminStats">
+      <div class="stat-card"><span>总兑换次数</span><strong id="statRedemptions">-</strong></div>
+      <div class="stat-card"><span>当前有效会话</span><strong id="statSessions">-</strong></div>
+      <div class="stat-card"><span>总 Token</span><strong id="statTokens">-</strong></div>
+      <div class="stat-card"><span>预估花费</span><strong id="statCost">-</strong></div>
+      <div class="stat-card"><span>日志条数</span><strong id="statLogs">-</strong></div>
+    </section>
+
+    <section class="card">
+      <h2>兑换记录</h2>
+      <div class="table-wrap"><table id="redemptionTable"><thead><tr><th>时间</th><th>商品</th><th>类型</th><th>内容</th><th>客户标识</th></tr></thead><tbody></tbody></table></div>
+      <button id="exportRedemptions" class="btn small">导出 CSV</button>
+    </section>
+
+    <section class="card">
+      <h2>Token 用量与花费</h2>
+      <div class="table-wrap"><table id="usageTable"><thead><tr><th>时间</th><th>知识点</th><th>输入 Token</th><th>输出 Token</th><th>总 Token</th><th>预估费用</th></tr></thead><tbody></tbody></table></div>
+      <button id="exportUsage" class="btn small">导出 CSV</button>
+    </section>
+
+    <section class="card">
+      <h2>系统日志</h2>
+      <div class="table-wrap"><table id="logTable"><thead><tr><th>时间</th><th>级别</th><th>事件</th><th>说明</th></tr></thead><tbody></tbody></table></div>
+      <button id="exportLogs" class="btn small">导出 CSV</button>
+    </section>
+  </main>
+
+  <script src="js/config.js" defer></script>
+  <script src="js/admin.js" defer></script>
+</body>
+</html>

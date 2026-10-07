@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>费曼反向学校｜对话</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="page-chat" data-page="chat">
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="assets/logo.svg" alt="费曼反向学校" />
+      <div><h1>费曼反向学校</h1><p id="chatBrandSubtitle">正在对话</p></div>
+    </div>
+    <div class="status-pills">
+      <span class="pill" id="licensePill">已授权</span>
+      <span class="pill" id="timePill">剩余：--</span>
+      <span class="pill" id="passPill">未通关</span>
+    </div>
+  </header>
+
+  <main class="chat-page">
+    <section class="chat-panel">
+      <div class="chat-head">
+        <div>
+          <h2 id="chatTitle">与 AI 学生对话</h2>
+          <p class="hint" id="chatSubtitle">AI 学生会先提问；你讲不清时，它绝不假装懂。</p>
+        </div>
+        <div class="chat-head-actions">
+          <button id="backSettingsBtn" class="btn small">返回设置</button>
+          <button id="endSessionBtn" class="btn small danger">结束本次对话</button>
+        </div>
+      </div>
+
+      <div id="chatMessages" class="chat-messages">
+        <div class="empty-state">
+          <p>正在准备对话……</p>
+        </div>
+      </div>
+
+      <div id="apiError" class="api-error hidden"></div>
+
+      <div class="composer">
+        <label for="userInput" class="sr-only">你的讲解</label>
+        <textarea id="userInput" rows="3" placeholder="用你自己的话讲解这个知识点。"></textarea>
+        <p id="lockHint" class="lock-hint">正在检查授权状态……</p>
+        <div class="composer-actions">
+          <span class="hint" id="turnHint"></span>
+          <div>
+            <button id="retryBtn" class="btn small hidden">重试上一条</button>
+            <button id="sendBtn" class="btn primary">发送讲解</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" defer></script>
+  <script src="js/config.js" defer></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/backend.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>

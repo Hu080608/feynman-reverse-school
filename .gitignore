@@ -1,0 +1,20 @@
+# 私钥、激活码、CSV 绝不能提交到 GitHub
+tools/keys/*.pem
+tools/keys/*.key
+*.csv
+.env
+.DS_Store
+
+# Cloudflare local secrets
+cloudflare/.dev.vars
+.dev.vars
+
+body.json
+chat.json
+codes_test.csv
+.wrangler/
+cloudflare/.wrangler/
+node_modules/
+tools/build/
+tools/dist/
+__pycache__/

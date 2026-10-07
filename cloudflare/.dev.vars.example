@@ -1,0 +1,10 @@
+# 仅用于本地 wrangler dev 测试；不要提交真实值
+DEEPSEEK_API_KEY=sk-你的key
+LICENSE_SECRET=你的很长很随机的密钥
+ALLOWED_ORIGIN=*
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-chat
+
+ADMIN_TOKEN=admin-demo-token
+INPUT_PRICE_PER_M=1
+OUTPUT_PRICE_PER_M=2

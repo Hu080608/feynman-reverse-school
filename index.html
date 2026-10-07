@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>费曼反向学校｜设置与激活</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="page-settings" data-page="settings">
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="assets/logo.svg" alt="费曼反向学校" />
+      <div><h1>费曼反向学校</h1><p>教会 AI 才算学会 · 输出倒逼输入</p></div>
+    </div>
+    <div class="status-pills">
+      <span class="pill" id="licensePill">未激活</span>
+      <span class="pill" id="timePill">剩余：--</span>
+      <span class="pill" id="passPill">未通关</span>
+    </div>
+  </header>
+
+  <main class="settings-page">
+    <section class="card">
+      <div class="step-badge">第 1 步</div>
+      <h2>选择知识点</h2>
+      <label for="knowledgePoint">我想讲清楚的知识点</label>
+      <textarea id="knowledgePoint" rows="3" placeholder="例如：什么是“沉没成本”？为什么它会影响决策？"></textarea>
+      <label for="learningGoal">我的学习目标（可选）</label>
+      <input id="learningGoal" type="text" placeholder="例如：能向高中生解释清楚，并会做基础题" />
+      <div class="btn-row">
+        <button id="newChatBtn" class="btn primary" disabled>开始新对话</button>
+        <button id="continueBtn" class="btn">继续上次对话</button>
+      </div>
+      <div class="session-box">
+        <label for="sessionSelect">我的对话记录</label>
+        <select id="sessionSelect"></select>
+        <button id="openSessionBtn" class="btn small">打开所选对话</button>
+      </div>
+    </section>
+
+    <section class="card guide-card">
+      <div class="step-badge">使用说明</div>
+      <h2>新手怎么用</h2>
+      <ol class="guide-list">
+        <li>先复制激活码到下面，点击“验证并激活 / 加时”。</li>
+        <li>填写知识点，点击“开始新对话”。</li>
+        <li>AI 学生会先向你提问，你用大白话讲解。</li>
+        <li>它追问、犯错、要例子时，继续把它讲懂。</li>
+        <li>它输出“考试通过”后，本次知识点通关。</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <div class="step-badge">第 2 步</div>
+      <h2>激活 / 加时</h2>
+      <label for="activationCode">激活码</label>
+      <textarea id="activationCode" rows="3" placeholder="粘贴从公众号收到的激活码"></textarea>
+      <button id="activateBtn" class="btn primary full">验证并激活 / 加时</button>
+      <p id="activationMsg" class="hint"></p>
+      <p class="tiny">激活码由后端一次性核销，同一码全平台只能兑换一次。</p>
+    </section>
+
+    <section class="card">
+      <div class="step-badge">进度</div>
+      <h2>掌握进度</h2>
+      <div class="progress"><div id="masteryBar" class="progress-inner" style="width:0%"></div></div>
+      <p id="masteryText" class="hint">AI 学生掌握度：0%</p>
+      <p id="passBadge" class="pass-badge hidden">🎓 本次对话已通过考试</p>
+      <p id="queueInfo" class="hint"></p>
+    </section>
+
+    <section class="card">
+      <div class="step-badge">可选</div>
+      <h2>图片转文字</h2>
+      <input id="imageInput" type="file" accept="image/*" />
+      <button id="ocrBtn" class="btn small">识别图片文字</button>
+      <p id="ocrStatus" class="hint"></p>
+      <label for="ocrText">识别结果（可编辑）</label>
+      <textarea id="ocrText" rows="4" placeholder="识别出的文字会显示在这里，你可以修改。"></textarea>
+      <button id="insertOcrBtn" class="btn small">保存识别结果</button>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" defer></script>
+  <script src="js/config.js" defer></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/backend.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>

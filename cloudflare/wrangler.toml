@@ -1,0 +1,24 @@
+name = "feynman-reverse-school-api"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+preview_urls = true
+
+# 先执行：wrangler kv namespace create LICENSE_KV
+# 把输出的 id 填到下面。
+routes = [
+  { pattern = "api.feynman-hsj.top", zone_name = "feynman-hsj.top", custom_domain = true, enabled = true, previews_enabled = false }
+]
+
+[[kv_namespaces]]
+binding = "LICENSE_KV"
+id = "4b1d6ca97b1847869f42aa288da60abe"
+
+[vars]
+# GitHub Pages 地址；本地测试也可以先用 "*"
+ALLOWED_ORIGIN = "*"
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+DEEPSEEK_MODEL = "deepseek-chat"
+
+INPUT_PRICE_PER_M = "1"
+OUTPUT_PRICE_PER_M = "2"
