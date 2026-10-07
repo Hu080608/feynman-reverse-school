@@ -183,6 +183,12 @@ function refreshSession(session, now, startTime) {
     g.status = "done";
     session.grants.shift();
     changed = true;
+    const nextCountGrant = session.grants[0];
+    if (nextCountGrant && nextCountGrant.type === "time" && !nextCountGrant.activeAt && session.inConversation) {
+      startTimeGrant(nextCountGrant, now);
+      changed = true;
+      continue;
+    }
   }
   if (!session.grants || session.grants.length === 0) {
     session.active = false;

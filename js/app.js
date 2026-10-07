@@ -69,7 +69,15 @@
   }
   function backendActive() {
     const st = state.backendStatus;
-    return !!(st && st.available && !st.closing);
+    if (!st) return false;
+    const available = st.available != null ? st.available : st.active;
+    return !!(available && !st.closing);
+  }
+  function isReadonlyMode() {
+    return PAGE === "chat" && sessionStorage.getItem("feynman_readonly") === "1";
+  }
+  function clearReadonlyMode() {
+    try { sessionStorage.removeItem("feynman_readonly"); } catch (e) {}
   }
   function backendClosing() {
     return !!(state.backendStatus && state.backendStatus.closing);
@@ -140,24 +148,48 @@
     location.href = "chat.html";
   }
   function showSettings() {
+    clearReadonlyMode();
     location.href = "index.html";
+  }
+  function openSessionAction(s) {
+    if (!s) return;
+    state.currentSessionId = s.id;
+    saveState(); renderAll();
+    if (backendActive()) {
+      if (s.endedAt) {
+        if (!confirm("这个对话之前已经结束。是否重新打开并继续？")) return;
+        s.endedAt = null;
+        touchSession(s);
+      }
+      clearReadonlyMode();
+      if (!canEnterChat()) return;
+      location.href = "chat.html";
+    } else {
+      sessionStorage.setItem("feynman_readonly", "1");
+      location.href = "chat.html";
+    }
   }
   function updateControls() {
     const active = backendActive();
     const closing = backendClosing();
+    const readonly = isReadonlyMode();
     const s = currentSession();
+    const kp = s && s.knowledgePoint ? String(s.knowledgePoint).trim() : "";
     const hasSession = !!s;
     const sessionCount = listSessions().length;
-    if (els.knowledgePoint) els.knowledgePoint.disabled = !active;
-    if (els.learningGoal) els.learningGoal.disabled = !active;
+    if (els.knowledgePoint) els.knowledgePoint.disabled = false;
+    if (els.learningGoal) els.learningGoal.disabled = false;
     if (els.newChatBtn) els.newChatBtn.disabled = !active;
-    if (els.sendBtn) els.sendBtn.disabled = !active || sending || closing;
-    if (els.retryBtn) els.retryBtn.disabled = !active || sending;
-    if (els.userInput) els.userInput.disabled = !active || closing;
+    if (els.sendBtn) els.sendBtn.disabled = readonly || !active || sending || closing;
+    if (els.retryBtn) els.retryBtn.disabled = readonly || !active || sending;
+    if (els.userInput) els.userInput.disabled = readonly || !active || closing;
     if (els.continueBtn) els.continueBtn.disabled = sessionCount === 0;
     if (els.openSessionBtn) els.openSessionBtn.disabled = sessionCount === 0;
     if (els.lockHint) {
-      if (!backendReady()) {
+      if (readonly) {
+        els.lockHint.textContent = "只读模式：正在查看历史对话。激活或加时后才能继续发送。";
+        els.lockHint.className = "lock-hint danger";
+      } else if (!backendReady()) {
         els.lockHint.textContent = "后端未配置：请检查 js/config.js 的 BACKEND.url。";
         els.lockHint.className = "lock-hint danger";
       } else if (!state.backendToken) {
@@ -177,23 +209,26 @@
         els.lockHint.className = "lock-hint ok";
       }
     }
-    // 设置页三步引导
-    const kp = s && s.knowledgePoint ? s.knowledgePoint.trim() : "";
-    if (els.setupStep1) els.setupStep1.className = "step " + (state.backendToken ? "done" : "active");
+    // 设置页三步引导：没有可用时长/次数时，重置回第 1 步
+    if (els.setupStep1) {
+      els.setupStep1.className = "step " + ((!state.backendToken || !active) ? "active" : "done");
+    }
     if (els.setupStep2) {
-      if (state.backendToken && kp) els.setupStep2.className = "step done";
-      else if (state.backendToken) els.setupStep2.className = "step active";
-      else els.setupStep2.className = "step";
+      if (!active) els.setupStep2.className = "step";
+      else if (kp) els.setupStep2.className = "step done";
+      else els.setupStep2.className = "step active";
     }
     if (els.setupStep3) {
-      if (s && s.messages && s.messages.length) els.setupStep3.className = "step done";
-      else if (active && kp) els.setupStep3.className = "step active";
-      else els.setupStep3.className = "step";
+      if (!active || !kp) els.setupStep3.className = "step";
+      else if (hasSession && s.messages && s.messages.length) els.setupStep3.className = "step done";
+      else els.setupStep3.className = "step active";
     }
     if (els.setupHint) {
-      if (!state.backendToken) {
-        els.setupHint.textContent = "第 1 步：请先输入激活码。激活后，下面的知识点输入框会自动解锁。";
-      } else if (!backendActive()) {
+      if (readonly) {
+        els.setupHint.textContent = "当前是只读模式：可以查看历史对话，激活或加时后才能继续发送。";
+      } else if (!state.backendToken) {
+        els.setupHint.textContent = "第 1 步：请先输入激活码。";
+      } else if (!active) {
         els.setupHint.textContent = "当前没有可用时长/次数，请在下面继续激活或加时。";
       } else if (!kp) {
         els.setupHint.textContent = "第 2 步：填写你想讲清楚的知识点。";
@@ -202,6 +237,7 @@
       }
     }
   }
+
 
   function currentSession() {
     if (!state.currentSessionId) return null;
@@ -366,7 +402,7 @@
     if (!els.timePill || !els.licensePill) return;
     const st = state.backendStatus;
     const closing = !!(st && st.closing);
-    const available = !!(st && st.available && !st.closing);
+    const available = !!(st && (st.available != null ? st.available : st.active) && !st.closing);
     if (closing) {
       els.timePill.textContent = "时长已到 · 请结束本次对话";
       els.timePill.className = "pill warn";
@@ -541,6 +577,7 @@
   }
 
   async function send() {
+    if (isReadonlyMode()) { toast("只读模式：激活或加时后才能继续发送。"); return; }
     const s = ensureSession();
     const text = els.userInput.value.trim();
     if (!s.knowledgePoint) { toast("请先填写知识点。"); els.knowledgePoint.focus(); return; }
@@ -619,7 +656,7 @@
         state.currentSessionId = s.id;
         state.sessions[s.id] = s;
         saveState();
-        if (canEnterChat()) location.href = "chat.html";
+        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html"; }
         else { renderAll(); toast("请先激活后再开始对话。"); }
       });
     }
@@ -627,20 +664,14 @@
       els.continueBtn.addEventListener("click", () => {
         const list = listSessions();
         if (!list.length) { toast("还没有历史对话。"); return; }
-        state.currentSessionId = list[0].id;
-        saveState(); renderAll();
-        if (canEnterChat()) location.href = "chat.html";
-        else toast("当前没有可用时长/次数，请先激活或加时。");
+        openSessionAction(list[0]);
       });
     }
     if (els.openSessionBtn) {
       els.openSessionBtn.addEventListener("click", () => {
         const id = els.sessionSelect.value;
         if (!id || !state.sessions[id]) { toast("请选择一条对话。"); return; }
-        state.currentSessionId = id;
-        saveState(); renderAll();
-        if (canEnterChat()) location.href = "chat.html";
-        else toast("当前没有可用时长/次数，请先激活或加时。");
+        openSessionAction(state.sessions[id]);
       });
     }
     if (els.activateBtn) els.activateBtn.addEventListener("click", activateCode);
@@ -656,6 +687,7 @@
       els.endSessionBtn.addEventListener("click", async () => {
         const s = currentSession();
         if (!s) return;
+        if (isReadonlyMode()) { clearReadonlyMode(); location.href = "index.html"; return; }
         if (s.messages.length && !confirm("结束本次对话？结束后如果服务已到期，将不能继续发送。")) return;
         s.endedAt = Date.now();
         if (backendReady() && state.backendToken) {
@@ -692,7 +724,18 @@
   function init() {
     bind();
     if (PAGE === "chat") {
+      const s = currentSession();
+      if (!s) { location.replace("index.html"); return; }
+      if (isReadonlyMode()) {
+        renderAll();
+        updateControls();
+        document.body.classList.add("readonly-mode");
+        tick();
+        setInterval(tick, 1000);
+        return;
+      }
       if (!canEnterChat()) { location.replace("index.html"); return; }
+      clearReadonlyMode();
       renderAll();
       updateControls();
       if (backendReady() && state.backendToken) {
