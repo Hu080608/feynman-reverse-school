@@ -612,6 +612,12 @@
     els.ocrStatus.textContent = "正在识别：0%";
     try {
       const result = await window.Tesseract.recognize(file, cfg.APP.ocrLang || "chi_sim+eng", {
+        // 使用国内 npmmirror CDN，避免 jsdelivr 在大陆被墙
+        workerPath: "https://cdn.npmmirror.com/packages/tesseract.js/5.1.1/files/dist/worker.min.js",
+        corePath: "https://cdn.npmmirror.com/packages/tesseract.js-core/5.1.1/files/",
+        // 语言包已放在本站 vendor/tessdata 目录，避免外网语言包加载失败
+        langPath: new URL("vendor/tessdata/", location.href).href,
+        gzip: true,
         logger: m => {
           if (m.status === "recognizing text") els.ocrStatus.textContent = "正在识别：" + Math.round((m.progress || 0) * 100) + "%";
           else els.ocrStatus.textContent = m.status || "处理中...";
