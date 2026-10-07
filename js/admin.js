@@ -89,10 +89,11 @@
       r.type === "time" ? (r.durationSeconds + "秒") : (r.uses + "次"),
       r.clientId || "-"
     ])).join("") || '<tr><td colspan="5">暂无记录</td></tr>';
-    $("usageTable").querySelector("tbody").innerHTML = cache.usage.map(u => tds([
-      fmtTime(u.createdAt), u.knowledgePoint || "-", u.promptTokens || 0, u.completionTokens || 0,
-      u.totalTokens || 0, money(u.cost || 0)
-    ])).join("") || '<tr><td colspan="6">暂无记录</td></tr>';
+    $("usageTable").querySelector("tbody").innerHTML = cache.usage.map(u => {
+      const source = u.source === "vision" ? "识图" : (u.source === "ocr_clean" ? "OCR整理" : "对话");
+      return tds([fmtTime(u.createdAt), source, u.knowledgePoint || "-", u.promptTokens || 0,
+        u.completionTokens || 0, u.totalTokens || 0, money(u.cost || 0)]);
+    }).join("") || '<tr><td colspan="7">暂无记录</td></tr>';
     $("logTable").querySelector("tbody").innerHTML = cache.logs.map(l => tds([
       fmtTime(l.createdAt), l.level || "info", l.event || "-", l.message || ""
     ])).join("") || '<tr><td colspan="4">暂无记录</td></tr>';
@@ -114,7 +115,7 @@
     $("adminRefreshBtn").addEventListener("click", refresh);
     $("adminToken").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
     $("exportRedemptions").addEventListener("click", () => exportCsv("redemptions", cache.redemptions, ["createdAt", "pname", "pid", "type", "durationSeconds", "uses", "clientId"]));
-    $("exportUsage").addEventListener("click", () => exportCsv("usage", cache.usage, ["createdAt", "knowledgePoint", "promptTokens", "completionTokens", "totalTokens", "cost"]));
+    $("exportUsage").addEventListener("click", () => exportCsv("usage", cache.usage, ["createdAt", "source", "knowledgePoint", "promptTokens", "completionTokens", "totalTokens", "cost"]));
     $("exportLogs").addEventListener("click", () => exportCsv("logs", cache.logs, ["createdAt", "level", "event", "message"]));
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind); else bind();

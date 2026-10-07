@@ -6,7 +6,7 @@
   <title>费曼反向学校｜设置与激活</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="https://cdn.npmmirror.com/packages/katex/0.16.11/files/dist/katex.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=22" />
+  <link rel="stylesheet" href="css/styles.css?v=23" />
 </head>
 <body class="page-settings" data-page="settings">
   <header class="topbar">
@@ -57,16 +57,14 @@
       <div class="sub-tools">
         <p class="sub-title">也可以上传图片，自动识别文字填入上面</p>
         <input id="imageInput" type="file" accept="image/*" />
-        <button id="ocrBtn" class="btn small">Tesseract 本地识别</button>
-        <button id="deepseekOcrBtn" class="btn small">用 DeepSeek 识图（公式更准）</button>
+        <button id="deepseekOcrBtn" class="btn small">识别图片文字（DeepSeek）</button>
         <p id="ocrStatus" class="hint"></p>
         <div class="ocr-progress"><div id="ocrProgressBar" class="ocr-progress-inner" style="width:0%"></div></div>
         <p id="ocrProgressText" class="tiny"></p>
         <label for="ocrText">识别结果（可编辑）</label>
         <textarea id="ocrText" rows="3" placeholder="识别出的文字会显示在这里。"></textarea>
         <button id="insertOcrBtn" class="btn small">填入上面的知识点输入框</button>
-        <button id="cleanOcrBtn" class="btn small">AI 整理为 Markdown / LaTeX</button>
-        <p class="tiny">Tesseract 对公式识别有限；可以点上面按钮，让 AI 把 OCR 结果整理成规范 LaTeX。</p>
+        <p class="tiny">使用 DeepSeek 视觉模型识别，自动整理为 Markdown / LaTeX。</p>
         <p class="sub-title" style="margin-top:14px;">排版预览（Markdown / LaTeX）</p>
         <div id="ocrPreview" class="ocr-preview">识别结果会在这里按 Markdown / LaTeX 排版预览。</div>
       </div>
@@ -109,10 +107,9 @@
   <script src="https://cdn.npmmirror.com/packages/dompurify/3.2.4/files/dist/purify.min.js" defer></script>
   <script src="https://cdn.npmmirror.com/packages/katex/0.16.11/files/dist/katex.min.js" defer></script>
   <script src="https://cdn.npmmirror.com/packages/katex/0.16.11/files/dist/contrib/auto-render.min.js" defer></script>
-  <script src="https://cdn.npmmirror.com/packages/tesseract.js/5.1.1/files/dist/tesseract.min.js" defer></script>
   <script src="js/config.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/backend.js" defer></script>
-  <script src="js/app.js?v=22" defer></script>
+  <script src="js/app.js?v=23" defer></script>
 </body>
 </html>

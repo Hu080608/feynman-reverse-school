@@ -12,8 +12,8 @@
     newChatBtn: $("newChatBtn"), continueBtn: $("continueBtn"), sessionSelect: $("sessionSelect"),
     openSessionBtn: $("openSessionBtn"), activationCode: $("activationCode"), activateBtn: $("activateBtn"),
     activationMsg: $("activationMsg"), masteryBar: $("masteryBar"), masteryText: $("masteryText"),
-    passBadge: $("passBadge"), queueInfo: $("queueInfo"), imageInput: $("imageInput"), ocrBtn: $("ocrBtn"), ocrStatus: $("ocrStatus"),
-    ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), cleanOcrBtn: $("cleanOcrBtn"), deepseekOcrBtn: $("deepseekOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), ocrPreview: $("ocrPreview"), chatTitle: $("chatTitle"),
+    passBadge: $("passBadge"), queueInfo: $("queueInfo"), imageInput: $("imageInput"), ocrStatus: $("ocrStatus"),
+    ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), deepseekOcrBtn: $("deepseekOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), ocrPreview: $("ocrPreview"), chatTitle: $("chatTitle"),
     chatSubtitle: $("chatSubtitle"), chatMessages: $("chatMessages"), apiError: $("apiError"),
     userInput: $("userInput"), sendBtn: $("sendBtn"), hintBtn: $("hintBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"), pauseExitBtn: $("pauseExitBtn"),
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), balancePanel: $("balancePanel"), toast: $("toast"),
@@ -746,32 +746,6 @@
     renderMath(els.ocrPreview);
   }
 
-  async function fetchLanguageWithProgress(url, label, startPct, endPct) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 180000);
-    try {
-      const res = await fetch(url, { signal: controller.signal });
-      if (!res.ok) throw new Error(label + "失败：" + res.status);
-      const total = Number(res.headers.get("content-length") || 0);
-      if (!res.body || !total) {
-        setOcrProgress(endPct, label + "完成");
-        return;
-      }
-      const reader = res.body.getReader();
-      let received = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        received += value.length;
-        const ratio = Math.min(1, received / total);
-        setOcrProgress(startPct + (endPct - startPct) * ratio, label + " " + Math.round(ratio * 100) + "%");
-      }
-      setOcrProgress(endPct, label + "完成");
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
   function fileToDataURL(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -792,86 +766,27 @@
       const dataUrl = await fileToDataURL(file);
       setOcrProgress(40, "正在调用 DeepSeek 识图...");
       els.ocrStatus.textContent = "DeepSeek 正在识别图片和公式...";
-      const res = await B.vision(state.backendToken, dataUrl, "请识别图片中的文字，数学公式用 LaTeX 表示，保留排版，只输出识别结果。");
-      els.ocrText.value = res.text || "";
+      const visionRes = await B.vision(state.backendToken, dataUrl, "请识别图片中的文字，数学公式用 LaTeX 表示，保留排版，只输出识别结果。");
+      let text = visionRes.text || "";
+      if (text) {
+        setOcrProgress(72, "AI 正在整理 Markdown / LaTeX 排版...");
+        els.ocrStatus.textContent = "AI 正在整理排版...";
+        try {
+          const cleanRes = await B.cleanText(state.backendToken, text);
+          text = cleanRes.text || text;
+        } catch (e) {
+          // 整理失败时保留原识别结果
+        }
+      }
+      els.ocrText.value = text;
       renderOcrPreview();
-      setOcrProgress(100, "DeepSeek 识图完成");
-      els.ocrStatus.textContent = "DeepSeek 识图完成，请检查并修改下方文字。";
+      setOcrProgress(100, "识别并整理完成");
+      els.ocrStatus.textContent = "识别并整理完成，请检查并修改下方文字。";
     } catch (e) {
       setOcrProgress(0, "DeepSeek 识图失败");
       els.ocrStatus.textContent = "DeepSeek 识图失败：" + (e && e.message ? e.message : e);
     } finally {
       els.deepseekOcrBtn.disabled = false;
-    }
-  }
-
-  async function cleanOcr() {
-    const text = els.ocrText.value.trim();
-    if (!text) { toast("没有可整理的内容。"); return; }
-    if (!backendReady() || !state.backendToken) { toast("请先激活后再使用 AI 整理。"); return; }
-    els.cleanOcrBtn.disabled = true;
-    els.ocrStatus.textContent = "AI 正在整理公式...";
-    try {
-      const res = await B.cleanText(state.backendToken, text);
-      els.ocrText.value = res.text || text;
-      renderOcrPreview();
-      els.ocrStatus.textContent = "AI 整理完成，请检查并修改。";
-    } catch (e) {
-      els.ocrStatus.textContent = "AI 整理失败：" + (e && e.message ? e.message : e);
-    } finally {
-      els.cleanOcrBtn.disabled = false;
-    }
-  }
-
-  async function runOcr() {
-    const file = els.imageInput.files && els.imageInput.files[0];
-    if (!file) { toast("请先选择一张图片。"); return; }
-    if (!window.Tesseract) { els.ocrStatus.textContent = "OCR 组件未加载：请检查网络/CDN 是否可访问。"; setOcrProgress(0, ""); return; }
-    els.ocrBtn.disabled = true;
-    els.ocrStatus.textContent = "准备 OCR...";
-    setOcrProgress(2, "准备 OCR...");
-    try {
-      const base = new URL("vendor/tessdata-v2", location.href).href;
-      // 先手动预加载语言包，并显示真实下载进度；Tesseract 后续会优先走浏览器缓存。
-      await fetchLanguageWithProgress(base + "/eng.traineddata.gz", "加载英文语言包", 2, 12);
-      await fetchLanguageWithProgress(base + "/chi_sim.traineddata.gz", "加载中文语言包", 12, 25);
-
-      setOcrProgress(28, "启动 OCR 引擎...");
-      const result = await window.Tesseract.recognize(file, cfg.APP.ocrLang || "chi_sim+eng", {
-        workerPath: "https://cdn.npmmirror.com/packages/tesseract.js/5.1.1/files/dist/worker.min.js",
-        corePath: "https://cdn.npmmirror.com/packages/tesseract.js-core/5.1.1/files/",
-        langPath: base,
-        gzip: true,
-        // 避免 Tesseract 使用 IndexedDB 分段缓存时在 GitHub Pages 上出现 206 卡住
-        cacheMethod: "none",
-        logger: m => {
-          const status = m.status || "处理中";
-          if (status === "recognizing text") {
-            const pct = 55 + 45 * (m.progress || 0);
-            setOcrProgress(pct, "正在识别文字 " + Math.round((m.progress || 0) * 100) + "%");
-          } else if (status === "loading language traineddata") {
-            setOcrProgress(40, "加载语言包...");
-          } else if (status === "initializing tesseract") {
-            setOcrProgress(32, "初始化 OCR 引擎...");
-          } else if (status === "loading tesseract core") {
-            setOcrProgress(30, "加载 OCR 核心...");
-          } else {
-            const current = els.ocrProgressBar ? Number(String(els.ocrProgressBar.style.width).replace("%", "")) : 30;
-            setOcrProgress(Number.isFinite(current) ? Math.max(30, current) : 30, status);
-          }
-          els.ocrStatus.textContent = status + (m.progress ? " " + Math.round(m.progress * 100) + "%" : "");
-        }
-      });
-      els.ocrText.value = (result && result.data && result.data.text ? result.data.text : "").trim();
-      renderOcrPreview();
-      setOcrProgress(100, "识别完成");
-      els.ocrStatus.textContent = els.ocrText.value ? "识别完成，请检查并修改下方文字。" : "没有识别到文字，请换一张更清晰的图片。";
-    } catch (e) {
-      const msg = e && e.name === "AbortError" ? "语言包加载超时，请检查网络后重试。" : (e && e.message ? e.message : e);
-      els.ocrStatus.textContent = "识别失败：" + msg;
-      setOcrProgress(0, "识别失败");
-    } finally {
-      els.ocrBtn.disabled = false;
     }
   }
 
@@ -991,8 +906,6 @@
     }
     if (els.ocrText) els.ocrText.addEventListener("input", renderOcrPreview);
     if (els.deepseekOcrBtn) els.deepseekOcrBtn.addEventListener("click", deepseekOcr);
-    if (els.cleanOcrBtn) els.cleanOcrBtn.addEventListener("click", cleanOcr);
-    if (els.ocrBtn) els.ocrBtn.addEventListener("click", runOcr);
     if (els.insertOcrBtn) {
       els.insertOcrBtn.addEventListener("click", () => {
         const t = els.ocrText.value.trim();

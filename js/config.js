@@ -46,7 +46,6 @@ window.APP_CONFIG = {
     maxHistoryMessages: 36,       // 传给大模型的历史消息上限，防止 token 爆炸
     maxInputChars: 6000,
     finishCurrentConversationOnExpiry: true, // 时长到点但对话未结束时，允许完成本次对话
-    ocrLang: "chi_sim+eng",
     // 次数套餐的扣减单位：turn = 用户每发送一次讲解扣 1 次；session = 每完成一个知识点扣 1 次
     countUnit: "turn"
   },

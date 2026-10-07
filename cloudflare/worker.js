@@ -207,6 +207,36 @@ async function listRecords(env, prefix, limit) {
   out.sort((a, b) => Number(b.createdAt || b.redeemedAt || b.usedAt || 0) - Number(a.createdAt || a.redeemedAt || a.usedAt || 0));
   return out;
 }
+function usageCost(usage, env) {
+  const inputPrice = Number(env.INPUT_PRICE_PER_M || 1);
+  const outputPrice = Number(env.OUTPUT_PRICE_PER_M || 2);
+  const promptTokens = Number((usage && usage.prompt_tokens) || 0);
+  const completionTokens = Number((usage && usage.completion_tokens) || 0);
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens: Number((usage && usage.total_tokens) || (promptTokens + completionTokens)),
+    cost: Number(((promptTokens / 1000000) * inputPrice + (completionTokens / 1000000) * outputPrice).toFixed(6))
+  };
+}
+
+async function addUsageRecord(env, usage, source, model, knowledgePoint, clientId, token) {
+  if (!usage) return;
+  const c = usageCost(usage, env);
+  await addRecord(env, "usage:", {
+    createdAt: Date.now(),
+    source: source || "chat",
+    model: model || env.DEEPSEEK_MODEL || "deepseek-chat",
+    knowledgePoint: knowledgePoint || "",
+    promptTokens: c.promptTokens,
+    completionTokens: c.completionTokens,
+    totalTokens: c.totalTokens,
+    cost: c.cost,
+    clientId: clientId || "",
+    sessionTokenTail: token ? String(token).slice(-8) : ""
+  });
+}
+
 async function addSystemLog(env, level, event, message, meta) {
   await addRecord(env, "log:", {
     createdAt: Date.now(), level: level || "info", event: event || "system",
@@ -588,6 +618,7 @@ async function handleVision(request, env) {
   const text = data && data.choices && data.choices[0] && data.choices[0].message
     ? String(data.choices[0].message.content || "") : "";
   if (!text) return json({ ok: false, error: "EMPTY_RESULT", message: "DeepSeek 没有返回识别结果。" }, 502, env);
+  await addUsageRecord(env, data && data.usage, "vision", model, "", session.clientId || "", token);
   await addSystemLog(env, "info", "vision_ocr", "DeepSeek 识图完成", { model: model });
   return json({ ok: true, text: text, model: model }, 200, env);
 }
@@ -626,6 +657,7 @@ async function handleCleanText(request, env) {
   const cleaned = data && data.choices && data.choices[0] && data.choices[0].message
     ? String(data.choices[0].message.content || "") : "";
   if (!cleaned) return json({ ok: false, error: "EMPTY_RESULT", message: "AI 没有返回整理结果。" }, 502, env);
+  await addUsageRecord(env, data && data.usage, "ocr_clean", env.DEEPSEEK_MODEL || "deepseek-chat", "", session.clientId || "", token);
   await addSystemLog(env, "info", "ocr_clean", "OCR 文本 AI 整理完成", { length: text.length });
   return json({ ok: true, text: cleaned }, 200, env);
 }
