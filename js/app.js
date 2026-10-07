@@ -83,6 +83,17 @@
   function backendClosing() {
     return !!(state.backendStatus && state.backendStatus.closing);
   }
+  function poolTotals(st) {
+    if (!st) return { time: 0, uses: 0 };
+    if (st.timeRemainingMs != null || st.remainingUses != null) {
+      return { time: Number(st.timeRemainingMs || 0), uses: Number(st.remainingUses || 0) };
+    }
+    const q = st.queue && st.queue.length ? st.queue : (st.current ? [st.current] : []);
+    return {
+      time: q.filter(g => g && g.type === "time").reduce((a, g) => a + Number(g.remainingMs || 0), 0),
+      uses: q.filter(g => g && g.type === "count").reduce((a, g) => a + Number(g.remainingUses || 0), 0)
+    };
+  }
   async function refreshStatus(silent) {
     if (!backendReady() || !state.backendToken) { state.backendStatus = null; return; }
     try {
@@ -192,6 +203,11 @@
     if (els.hintBtn) els.hintBtn.disabled = readonly || !active || sending || closing;
     if (els.retryBtn) els.retryBtn.disabled = readonly || !active || sending;
     if (els.userInput) els.userInput.disabled = readonly || !active || closing;
+    if (els.prioritySelect) {
+      const totals = poolTotals(state.backendStatus);
+      els.prioritySelect.disabled = !(totals.time > 0 && totals.uses > 0);
+      els.prioritySelect.title = els.prioritySelect.disabled ? "只有同时有剩余时长和次数时才需要选择优先消耗" : "";
+    }
     if (els.continueBtn) {
       const list = listSessions();
       const selectedId = els.sessionSelect && els.sessionSelect.value
@@ -564,6 +580,24 @@
       closeSidebar();
       toast("激活成功。请填写知识点，点击“开始新对话”。");
     } catch (e) {
+      // 已兑换过的码：在新设备上尝试用激活码恢复已有账号，不重复增加余额。
+      if (e && e.payload && e.payload.error === "CODE_ALREADY_USED") {
+        try {
+          const res = await B.login(code);
+          state.backendToken = res.token || "";
+          state.backendStatus = res.status || null;
+          state.backendStatusAt = Date.now();
+          saveState();
+          els.activationCode.value = "";
+          els.activationMsg.textContent = "该激活码已兑换过，已恢复到本设备。";
+          renderTimer();
+          toast("已恢复已有账号");
+          return;
+        } catch (e2) {
+          els.activationMsg.textContent = "❌ 该激活码已使用，但恢复失败：" + (e2 && e2.message ? e2.message : e2);
+          return;
+        }
+      }
       els.activationMsg.textContent = "❌ " + (e && e.message ? e.message : "激活失败");
     } finally {
       els.activateBtn.disabled = false;

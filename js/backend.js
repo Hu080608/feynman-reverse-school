@@ -32,6 +32,9 @@
   async function redeem(code, clientId) {
     return postJson("/api/redeem", { code: code, clientId: clientId });
   }
+  async function login(code) {
+    return postJson("/api/login", { code: code });
+  }
   async function status(token) {
     return postJson("/api/status", { token: token });
   }
@@ -97,5 +100,5 @@
     return full;
   }
 
-  window.FeynmanBackend = { redeem, status, start, pause, end, chat, baseUrl };
+  window.FeynmanBackend = { redeem, login, status, start, pause, end, chat, baseUrl };
 })();

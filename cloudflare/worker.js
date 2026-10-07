@@ -63,7 +63,7 @@ async function hmacSha256(secret, text) {
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(text)));
 }
 
-async function verifyLicenseCode(code, env) {
+async function verifyLicenseCode(code, env, ignoreExpiry) {
   const raw = String(code || "").trim().replace(/\s+/g, "");
   const parts = raw.split(".");
   if (parts.length !== 2) throw new Error("激活码格式不正确。");
@@ -79,7 +79,7 @@ async function verifyLicenseCode(code, env) {
   if (payload.type === "time" && !(Number(payload.durationSeconds) > 0)) throw new Error("激活码时长无效。");
   if (payload.type === "count" && !(Number(payload.uses) > 0)) throw new Error("激活码次数无效。");
   const now = Date.now();
-  if (payload.exp && now > Number(payload.exp) * 1000) throw new Error("激活码已超过激活有效期。");
+  if (!ignoreExpiry && payload.exp && now > Number(payload.exp) * 1000) throw new Error("激活码已超过激活有效期。");
   if (payload.nbf && now < Number(payload.nbf) * 1000) throw new Error("激活码尚未生效。");
   return payload;
 }
@@ -330,6 +330,7 @@ async function handleRedeem(request, env) {
   session.closing = false;
   refreshSession(session, now, session.inConversation);
   await kvPutJson(env, sessionKey, session, { expirationTtl: 90 * 86400 });
+  await env.LICENSE_KV.put("code-session:" + payload.jti, session.token, { expirationTtl: 90 * 86400 });
   if (clientId) {
     await env.LICENSE_KV.put("client:" + clientId, session.token, { expirationTtl: 90 * 86400 });
   }
@@ -545,6 +546,25 @@ async function handleChat(request, env) {
   });
 }
 
+async function handleLogin(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const code = body.code;
+  let payload;
+  try { payload = await verifyLicenseCode(code, env, true); }
+  catch (e) { return json({ ok: false, error: "INVALID_CODE", message: e.message }, 400, env); }
+  const used = await kvGetJson(env, "used:" + payload.jti);
+  if (!used) return json({ ok: false, error: "CODE_NOT_REDEEMED", message: "该激活码还没有兑换过，请先激活。" }, 404, env);
+  const token = await env.LICENSE_KV.get("code-session:" + payload.jti);
+  if (!token) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "该激活码对应的会话已失效，请重新购买。" }, 404, env);
+  const session = await kvGetJson(env, "session:" + token);
+  if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "该激活码对应的会话已失效，请重新购买。" }, 404, env);
+  const now = Date.now();
+  refreshSession(session, now, false);
+  await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
+  return json({ ok: true, token: token, status: statusPayload(session, now) }, 200, env);
+}
+
 async function handlePause(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
@@ -607,6 +627,7 @@ async function handleRequest(request, env) {
   if (path === "/api/redeem" && request.method === "POST") return handleRedeem(request, env);
   if (path === "/api/status" && request.method === "POST") return handleStatus(request, env);
   if (path === "/api/pause" && request.method === "POST") return handlePause(request, env);
+  if (path === "/api/login" && request.method === "POST") return handleLogin(request, env);
   if (path === "/api/start" && request.method === "POST") return handleStart(request, env);
   if (path === "/api/chat" && request.method === "POST") return handleChat(request, env);
   if (path === "/api/end" && request.method === "POST") return handleEnd(request, env);
