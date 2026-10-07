@@ -980,7 +980,7 @@
         setInterval(tick, 1000);
         return;
       }
-      if (els.endSessionBtn) els.endSessionBtn.textContent = "结束本次对话";
+      if (els.endSessionBtn) els.endSessionBtn.textContent = "结束本次对话（我已完全掌握本知识点）";
       if (els.backSettingsBtn) els.backSettingsBtn.textContent = "暂时退出";
       if (!canEnterChat()) { location.replace("index.html"); return; }
       clearReadonlyMode();
