@@ -608,3 +608,133 @@ body.page-chat .chat-head{flex:0 0 auto!important}
     font-size:10px;
   }
 }
+
+/* 手机端对话页 v2：极限压缩非消息区域 */
+@media (max-width:640px){
+  body.page-chat .topbar{
+    padding:5px 8px!important;
+    gap:4px!important;
+  }
+  body.page-chat .brand{
+    gap:8px;
+  }
+  body.page-chat .brand .logo{
+    width:32px!important;
+    height:32px!important;
+    border-radius:10px!important;
+  }
+  body.page-chat .brand h1{
+    font-size:14px!important;
+    line-height:1.2;
+  }
+  body.page-chat .status-pills{
+    gap:3px!important;
+  }
+  body.page-chat .pill{
+    font-size:9px!important;
+    padding:4px 6px!important;
+  }
+  body.page-chat .chat-head{
+    flex-direction:row!important;
+    align-items:center!important;
+    padding:6px 8px!important;
+    gap:6px!important;
+  }
+  body.page-chat .chat-head > div:first-child{
+    flex:1 1 auto;
+    min-width:0;
+  }
+  body.page-chat .chat-head h2{
+    font-size:13px!important;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  body.page-chat .chat-head .hint{
+    display:none!important;
+  }
+  body.page-chat .chat-head-actions{
+    flex:0 0 auto!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:4px!important;
+    width:56%!important;
+  }
+  body.page-chat .chat-head-actions .btn{
+    width:100%!important;
+    min-width:0!important;
+    font-size:9px!important;
+    padding:5px 2px!important;
+    line-height:1.1!important;
+    white-space:normal!important;
+  }
+  body.page-chat .chat-messages{
+    flex:1 1 auto!important;
+    min-height:180px!important;
+    padding:8px!important;
+    gap:8px!important;
+  }
+  body.page-chat .composer{
+    padding:6px 8px 7px!important;
+  }
+  body.page-chat .composer textarea{
+    height:52px!important;
+    min-height:52px!important;
+    font-size:12px!important;
+    padding:8px 10px!important;
+  }
+  body.page-chat .lock-hint{
+    display:none!important;
+  }
+  body.page-chat .composer-actions{
+    margin-top:5px!important;
+    gap:6px!important;
+  }
+  body.page-chat .composer-actions > div{
+    display:flex!important;
+    gap:6px!important;
+    width:100%!important;
+  }
+  body.page-chat .composer-actions .btn{
+    flex:1 1 0!important;
+    width:auto!important;
+    font-size:11px!important;
+    padding:7px 4px!important;
+    white-space:nowrap!important;
+  }
+  body.page-chat .app-meta{
+    display:none!important;
+  }
+}
+
+/* 手机端对话页 v3：顶部品牌与状态同一行，利用右侧空白 */
+@media (max-width:640px){
+  body.page-chat .topbar{
+    flex-direction:row!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    flex-wrap:nowrap!important;
+    gap:6px!important;
+  }
+  body.page-chat .brand{
+    flex:1 1 auto!important;
+    min-width:0!important;
+    gap:7px!important;
+  }
+  body.page-chat .brand h1{
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  body.page-chat .status-pills{
+    flex:0 0 auto!important;
+    width:auto!important;
+    overflow:visible!important;
+    flex-wrap:nowrap!important;
+    justify-content:flex-end!important;
+    padding-bottom:0!important;
+  }
+  body.page-chat .pill{
+    white-space:nowrap!important;
+  }
+}
