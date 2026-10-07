@@ -358,3 +358,20 @@ body.page-settings .settings-page > *{
   margin-left:0!important;
   margin-right:0!important;
 }
+
+/* 图片转文字与知识点放一起 */
+.sub-tools{
+  margin:12px 0 6px;
+  padding:12px;
+  border:1px dashed rgba(109,140,255,.35);
+  border-radius:14px;
+  background:rgba(8,13,28,.55);
+}
+.sub-title{
+  margin:0 0 8px;
+  font-size:13px;
+  font-weight:800;
+  color:#d9e4ff;
+}
+.sub-tools input[type="file"]{margin-bottom:8px}
+.sub-tools .btn{margin-top:6px}

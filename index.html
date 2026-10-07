@@ -47,6 +47,15 @@
       <p class="card-desc">填写你想讲清楚的知识点。激活后，这个输入框才会解锁。</p>
       <label for="knowledgePoint">我想讲清楚的知识点</label>
       <textarea id="knowledgePoint" rows="3" placeholder="例如：什么是“沉没成本”？为什么它会影响决策？" disabled></textarea>
+      <div class="sub-tools">
+        <p class="sub-title">也可以上传图片，自动识别文字填入上面</p>
+        <input id="imageInput" type="file" accept="image/*" />
+        <button id="ocrBtn" class="btn small">识别图片文字</button>
+        <p id="ocrStatus" class="hint"></p>
+        <label for="ocrText">识别结果（可编辑）</label>
+        <textarea id="ocrText" rows="3" placeholder="识别出的文字会显示在这里。"></textarea>
+        <button id="insertOcrBtn" class="btn small">填入上面的知识点输入框</button>
+      </div>
       <label for="learningGoal">我的学习目标（可选）</label>
       <input id="learningGoal" type="text" placeholder="例如：能向高中生解释清楚，并会做基础题" disabled />
       <button id="newChatBtn" class="btn primary full" disabled>开始新对话</button>
@@ -72,19 +81,6 @@
         <p id="masteryText" class="hint">AI 学生掌握度：0%</p>
         <p id="passBadge" class="pass-badge hidden">🎓 本次对话已通过考试</p>
         <p id="queueInfo" class="hint"></p>
-      </div>
-    </details>
-
-    <details class="advanced card">
-      <summary>图片转文字</summary>
-      <div class="advanced-body">
-        <p class="card-desc">识别图片中的文字，结果可以编辑，并自动填入知识点输入框。</p>
-        <input id="imageInput" type="file" accept="image/*" />
-        <button id="ocrBtn" class="btn small">识别图片文字</button>
-        <p id="ocrStatus" class="hint"></p>
-        <label for="ocrText">识别结果（可编辑）</label>
-        <textarea id="ocrText" rows="4" placeholder="识别出的文字会显示在这里。"></textarea>
-        <button id="insertOcrBtn" class="btn small">填入知识点输入框</button>
       </div>
     </details>
 
