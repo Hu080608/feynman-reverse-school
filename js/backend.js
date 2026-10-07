@@ -35,8 +35,8 @@
   async function status(token) {
     return postJson("/api/status", { token: token });
   }
-  async function start(token) {
-    return postJson("/api/start", { token: token });
+  async function start(token, priority) {
+    return postJson("/api/start", { token: token, priority: priority || "time" });
   }
   async function pause(token) {
     return postJson("/api/pause", { token: token });

@@ -29,7 +29,7 @@
 
   /* ---------------- 持久化与会话 ---------------- */
   function defaultState() {
-    return { version: 2, currentSessionId: null, sessions: {}, license: A.emptyLicense(), usedCodeIds: [], backendToken: "", backendStatus: null, backendStatusAt: 0 };
+    return { version: 2, currentSessionId: null, sessions: {}, license: A.emptyLicense(), usedCodeIds: [], backendToken: "", backendStatus: null, backendStatusAt: 0, consumePriority: "time" };
   }
   function loadState() {
     try {
@@ -42,7 +42,8 @@
         usedCodeIds: Array.isArray(obj.usedCodeIds) ? obj.usedCodeIds : [],
         backendToken: typeof obj.backendToken === "string" ? obj.backendToken : "",
         backendStatus: obj.backendStatus || null,
-        backendStatusAt: Number(obj.backendStatusAt || 0)
+        backendStatusAt: Number(obj.backendStatusAt || 0),
+        consumePriority: obj.consumePriority === "count" ? "count" : "time"
       });
     } catch (e) {
       console.warn("读取本地状态失败", e);
@@ -105,7 +106,7 @@
   async function startChatSession() {
     if (!backendReady() || !state.backendToken) return false;
     try {
-      const res = await B.start(state.backendToken);
+      const res = await B.start(state.backendToken, state.consumePriority || "time");
       state.backendStatus = res.status || null;
       state.backendStatusAt = Date.now();
       saveState();
@@ -307,24 +308,65 @@
   }
   function renderMarkdown(text) {
     const src = String(text || "");
+    const math = [];
+    const addMath = (tex, display) => {
+      const idx = math.length;
+      math.push({ tex: tex, display: !!display });
+      return "@@FMATH" + idx + "@@";
+    };
+    const protectPair = (input, open, close, display) => {
+      let out = "";
+      let i = 0;
+      while (true) {
+        const s = input.indexOf(open, i);
+        if (s === -1) { out += input.slice(i); break; }
+        out += input.slice(i, s);
+        const e = input.indexOf(close, s + open.length);
+        if (e === -1) { out += input.slice(s); break; }
+        out += addMath(input.slice(s + open.length, e), display);
+        i = e + close.length;
+      }
+      return out;
+    };
+    // 先保护数学公式，避免被 marked 换行/转义破坏
+    let protectedSrc = protectPair(src, "$$", "$$", true);
+    protectedSrc = protectPair(protectedSrc, "\\[", "\\]", true);
+    protectedSrc = protectPair(protectedSrc, "\\(", "\\)", false);
+    protectedSrc = protectedSrc.replace(new RegExp("\\$([^$\\n]+?)\\$", "g"), (m, tex) => addMath(tex, false));
+
     let html;
     if (window.marked && typeof window.marked.parse === "function") {
-      html = window.marked.parse(src, { gfm: true, breaks: true });
+      html = window.marked.parse(protectedSrc, { gfm: true, breaks: false });
     } else {
-      html = escapeHtml(src).replace(/\n/g, "<br>");
+      html = escapeHtml(protectedSrc).replace(/\n/g, "<br>");
     }
     if (window.DOMPurify) html = window.DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+    // 再用 KaTeX 渲染公式并替换占位符
+    html = html.replace(/@@FMATH(\d+)@@/g, (m, idx) => {
+      const item = math[Number(idx)];
+      if (!item) return "";
+      if (window.katex && typeof window.katex.renderToString === "function") {
+        try {
+          return window.katex.renderToString(item.tex, { displayMode: !!item.display, throwOnError: false });
+        } catch (e) {
+          return escapeHtml(item.tex);
+        }
+      }
+      return escapeHtml(item.tex);
+    });
     return html;
   }
+
+
   function renderMath(root) {
     if (!window.renderMathInElement) return;
     try {
       window.renderMathInElement(root, {
         delimiters: [
           { left: "$$", right: "$$", display: true },
-          { left: "\[", right: "\]", display: true },
+          { left: "\\[", right: "\\]", display: true },
           { left: "$", right: "$", display: false },
-          { left: "\(", right: "\)", display: false }
+          { left: "\\(", right: "\\)", display: false }
         ],
         throwOnError: false
       });
@@ -454,7 +496,8 @@
       els.balancePanel.innerHTML =
         '<div class="balance-title">全部余额</div>' +
         '<div class="balance-item"><span>时长余额</span><b>' + formatDuration(timeMs) + '</b><em>时长 · ' + timeStatus + '</em></div>' +
-        '<div class="balance-item"><span>次数余额</span><b>' + uses + ' 次</b><em>次数 · ' + (uses > 0 ? "可用" : "已用完") + '</em></div>';
+        '<div class="balance-item"><span>次数余额</span><b>' + uses + ' 次</b><em>次数 · ' + (uses > 0 ? "可用" : "已用完") + '</em></div>' +
+        '<div class="balance-item"><span>优先消耗</span><b>' + (st && st.priority === "count" ? "次数" : "时长") + '</b><em>可在设置页修改</em></div>';
     }
     if (els.queueInfo) els.queueInfo.textContent = "";
     updateControls();
@@ -561,7 +604,8 @@
         learningGoal: s.learningGoal || "",
         messages: history,
         start: !!isStart,
-        hint: !!hint
+        hint: !!hint,
+        priority: state.consumePriority || "time"
       }, (delta, full) => {
         streamMsg.content = full;
         body.innerHTML = renderMarkdown(stripAiMarkers(full));
@@ -798,6 +842,14 @@
       els.timePill.addEventListener("click", (e) => {
         e.stopPropagation();
         els.balancePanel.classList.toggle("hidden");
+      });
+    }
+    if (els.prioritySelect) {
+      els.prioritySelect.value = state.consumePriority || "time";
+      els.prioritySelect.addEventListener("change", () => {
+        state.consumePriority = els.prioritySelect.value === "count" ? "count" : "time";
+        saveState();
+        toast(state.consumePriority === "count" ? "已设置为优先消耗次数" : "已设置为优先消耗时长");
       });
     }
     if (els.activateBtn) els.activateBtn.addEventListener("click", activateCode);

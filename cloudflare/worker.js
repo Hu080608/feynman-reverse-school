@@ -103,7 +103,8 @@ function newSession(clientId) {
     closing: false,
     timeRemainingMs: 0,
     remainingUses: 0,
-    timeActiveAt: null
+    timeActiveAt: null,
+    priority: "time"
   };
 }
 
@@ -126,6 +127,7 @@ function migrateSession(session, now) {
   session.timeActiveAt = null;
   session.inConversation = false;
   session.closing = false;
+  session.priority = session.priority || "time";
   delete session.grants;
   session.updatedAt = now;
   return true;
@@ -179,6 +181,7 @@ function statusPayload(session, now) {
     remainingUses,
     timeActive: !!session.timeActiveAt,
     paused: timeRemainingMs > 0 && !session.timeActiveAt,
+    priority: session.priority || "time",
     // 兼容旧前端字段
     current: null,
     queue: []
@@ -320,7 +323,7 @@ async function handleRedeem(request, env) {
   migrateSession(session, now);
   if (payload.type === "time") {
     session.timeRemainingMs = Number(session.timeRemainingMs || 0) + Number(payload.durationSeconds) * 1000;
-    if (session.inConversation && !session.timeActiveAt) session.timeActiveAt = now;
+    if (session.inConversation && session.priority === "time" && !session.timeActiveAt) session.timeActiveAt = now;
   } else {
     session.remainingUses = Number(session.remainingUses || 0) + Number(payload.uses);
   }
@@ -409,7 +412,8 @@ async function handleChat(request, env) {
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新输入激活码。" }, 404, env);
 
   const now = Date.now();
-  refreshSession(session, now, true);
+  session.priority = String(body.priority || session.priority || "time") === "count" ? "count" : "time";
+  refreshSession(session, now, false);
   if (session.closing) {
     return json({
       ok: false,
@@ -418,23 +422,32 @@ async function handleChat(request, env) {
       status: statusPayload(session, now)
     }, 403, env);
   }
-  const useTime = Number(session.timeRemainingMs || 0) > 0 || !!session.timeActiveAt;
-  if (!session.active && !useTime && Number(session.remainingUses || 0) <= 0) {
-    return json({ ok: false, error: "NO_ACTIVE_LICENSE", message: "没有可用时长/次数，请先激活或加时。", status: statusPayload(session, now) }, 402, env);
-  }
 
+  const hasTime = Number(session.timeRemainingMs || 0) > 0 || !!session.timeActiveAt;
+  const hasCount = Number(session.remainingUses || 0) > 0;
+  let useTime = false;
   let consumedCount = false;
-  if (!useTime) {
-    if (Number(session.remainingUses || 0) <= 0) {
-      refreshSession(session, now, true);
-      return json({ ok: false, error: "NO_ACTIVE_LICENSE", message: "次数已用完，请激活新的次数套餐。", status: statusPayload(session, now) }, 402, env);
+  if (session.priority === "count") {
+    if (hasCount) {
+      session.remainingUses = Math.max(0, Number(session.remainingUses || 0) - 1);
+      consumedCount = true;
+    } else if (hasTime) {
+      useTime = true;
     }
-    session.remainingUses = Math.max(0, Number(session.remainingUses || 0) - 1);
-    consumedCount = true;
+  } else {
+    if (hasTime) {
+      useTime = true;
+    } else if (hasCount) {
+      session.remainingUses = Math.max(0, Number(session.remainingUses || 0) - 1);
+      consumedCount = true;
+    }
+  }
+  if (!useTime && !consumedCount) {
+    return json({ ok: false, error: "NO_ACTIVE_LICENSE", message: "没有可用时长/次数，请先激活或加时。", status: statusPayload(session, now) }, 402, env);
   }
   session.inConversation = true;
   session.updatedAt = now;
-  refreshSession(session, now, true);
+  refreshSession(session, now, useTime);
   await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
 
   const knowledgePoint = String(body.knowledgePoint || "");
@@ -556,9 +569,11 @@ async function handleStart(request, env) {
   const session = await kvGetJson(env, "session:" + token);
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新输入激活码。" }, 404, env);
   const now = Date.now();
+  session.priority = String(body.priority || session.priority || "time") === "count" ? "count" : "time";
   session.inConversation = true;
   session.updatedAt = now;
-  refreshSession(session, now, true);
+  const shouldStartTime = session.priority !== "count" || Number(session.remainingUses || 0) <= 0;
+  refreshSession(session, now, shouldStartTime);
   await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
   return json({ ok: true, status: statusPayload(session, now) }, 200, env);
 }
