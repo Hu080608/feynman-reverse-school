@@ -101,116 +101,65 @@ function newSession(clientId) {
     updatedAt: now,
     inConversation: false,
     closing: false,
-    grants: []
+    timeRemainingMs: 0,
+    remainingUses: 0,
+    timeActiveAt: null
   };
 }
 
-function makeGrant(payload, now) {
-  const base = {
-    id: payload.jti,
-    pid: payload.pid || "",
-    pname: payload.pname || "",
-    type: payload.type,
-    addedAt: now,
-    status: "pending"
-  };
-  if (payload.type === "time") {
-    base.durationSeconds = Number(payload.durationSeconds);
-    base.activeAt = null;
-    base.expiresAt = null;
-  } else {
-    base.uses = Number(payload.uses);
-    base.remainingUses = Number(payload.uses);
+function migrateSession(session, now) {
+  if (!session || !Array.isArray(session.grants)) return false;
+  let time = Number(session.timeRemainingMs || 0);
+  let uses = Number(session.remainingUses || 0);
+  for (const g of session.grants) {
+    if (!g) continue;
+    if (g.type === "time") {
+      if (g.pausedRemainingMs != null) time += Math.max(0, Number(g.pausedRemainingMs) || 0);
+      else if (g.activeAt && g.expiresAt) time += Math.max(0, Number(g.expiresAt) - now);
+      else if (g.durationSeconds) time += Number(g.durationSeconds) * 1000;
+    } else if (g.type === "count") {
+      uses += Number(g.remainingUses != null ? g.remainingUses : (g.uses || 0));
+    }
   }
-  return base;
+  session.timeRemainingMs = time;
+  session.remainingUses = uses;
+  session.timeActiveAt = null;
+  session.inConversation = false;
+  session.closing = false;
+  delete session.grants;
+  session.updatedAt = now;
+  return true;
+}
+
+function settleTime(session, now) {
+  if (!session || !session.timeActiveAt) return false;
+  const elapsed = Math.max(0, Number(now) - Number(session.timeActiveAt));
+  if (elapsed <= 0) return false;
+  session.timeRemainingMs = Math.max(0, Number(session.timeRemainingMs || 0) - elapsed);
+  session.timeActiveAt = now;
+  if (Number(session.timeRemainingMs) <= 0) session.timeActiveAt = null;
+  return true;
 }
 
 /**
- * 刷新套餐队列：
- * - 时间套餐：从它成为队首时开始计时，不暂停；到期后自动出队并启用下一个。
- * - 次数套餐：队首时开始扣次，次数为 0 后出队并启用下一个。
- * - 当前没有更多套餐且用户还在对话中时，标记 closing，只允许用户结束本次对话。
- */
-function startTimeGrant(g, startAt) {
-  g.activeAt = Number(startAt) || Date.now();
-  g.expiresAt = g.activeAt + Number(g.durationSeconds) * 1000;
-  g.status = "active";
-}
-
-/**
- * 刷新套餐队列。
- * startTime=false：时间套餐没开始时保持 pending，不自动计时。
- * startTime=true：用户进入 chat.html 或发消息时，启动队首的时间套餐。
- * 时间套餐不暂停：上一位到期后，下一位从上一位到期时间接着计时。
+ * 新模型：时长和次数分别汇总，不再排队。
+ * 时间只在 chat.html 期间流逝；离开聊天页会自动暂停。
  */
 function refreshSession(session, now, startTime) {
   now = now || Date.now();
-  let changed = false;
-  while (session.grants && session.grants.length) {
-    const g = session.grants[0];
-    if (g.type === "time") {
-      if (!g.activeAt) {
-        if (g.pausedRemainingMs != null) {
-          if (startTime) {
-            startTimeGrant(g, now);
-            g.expiresAt = now + Number(g.pausedRemainingMs);
-            g.pausedRemainingMs = null;
-            changed = true;
-          } else {
-            g.status = "paused";
-          }
-          break;
-        }
-        if (startTime) {
-          startTimeGrant(g, now);
-          changed = true;
-        } else {
-          g.status = "pending";
-        }
-        break;
-      }
-      if (now < Number(g.expiresAt)) {
-        g.status = "active";
-        break;
-      }
-      // 当前时间套餐到期，记录到期时间，下一位时间套餐接着算
-      const expiredAt = Number(g.expiresAt) || now;
-      g.status = "done";
-      session.grants.shift();
-      changed = true;
-      const next = session.grants[0];
-      if (next && next.type === "time" && !next.activeAt) {
-        startTimeGrant(next, expiredAt);
-        changed = true;
-        continue;
-      }
-      continue;
-    }
-    if (g.remainingUses == null) g.remainingUses = Number(g.uses);
-    if (Number(g.remainingUses) > 0) {
-      g.status = "active";
-      break;
-    }
-    g.status = "done";
-    session.grants.shift();
+  let changed = migrateSession(session, now);
+  changed = settleTime(session, now) || changed;
+  if (startTime && Number(session.timeRemainingMs || 0) > 0 && !session.timeActiveAt) {
+    session.timeActiveAt = now;
     changed = true;
-    const nextCountGrant = session.grants[0];
-    if (nextCountGrant && nextCountGrant.type === "time" && !nextCountGrant.activeAt && session.inConversation) {
-      startTimeGrant(nextCountGrant, now);
-      changed = true;
-      continue;
-    }
   }
-  if (!session.grants || session.grants.length === 0) {
+  const hasEntitlement = Number(session.timeRemainingMs || 0) > 0 || Number(session.remainingUses || 0) > 0;
+  if (!hasEntitlement) {
     session.active = false;
     session.closing = !!session.inConversation;
   } else {
-    const g = session.grants[0];
-    const active = g.type === "count"
-      ? Number(g.remainingUses || 0) > 0
-      : !!(g.activeAt && now < Number(g.expiresAt));
-    session.active = active;
-    if (active) session.closing = false;
+    session.active = !!(session.timeActiveAt || Number(session.remainingUses || 0) > 0);
+    if (session.active) session.closing = false;
   }
   session.updatedAt = now;
   return changed;
@@ -219,41 +168,20 @@ function refreshSession(session, now, startTime) {
 function statusPayload(session, now) {
   now = now || Date.now();
   refreshSession(session, now, false);
-  const current = session.grants && session.grants[0] ? session.grants[0] : null;
-  const queue = (session.grants || []).map(g => {
-    const item = { id: g.id, pid: g.pid, pname: g.pname, type: g.type, status: g.status };
-    if (g.type === "time") item.remainingMs = g.pausedRemainingMs != null ? Number(g.pausedRemainingMs) : (g.activeAt && g.expiresAt ? Math.max(0, Number(g.expiresAt) - now) : null);
-    else item.remainingUses = Number(g.remainingUses || 0);
-    return item;
-  });
-  let remainingMs = null;
-  let remainingUses = null;
-  if (current && current.type === "time") {
-    if (current.pausedRemainingMs != null) remainingMs = Number(current.pausedRemainingMs);
-    else if (current.activeAt && current.expiresAt) remainingMs = Math.max(0, Number(current.expiresAt) - now);
-  }
-  if (current && current.type === "count") remainingUses = Number(current.remainingUses || 0);
-  const pendingTime = !!(current && current.type === "time" && current.status === "pending");
-  const pausedTime = !!(current && current.type === "time" && current.status === "paused");
+  const timeRemainingMs = Math.max(0, Number(session.timeRemainingMs || 0));
+  const remainingUses = Math.max(0, Number(session.remainingUses || 0));
   return {
-    active: !!(current && current.status === "active" && !session.closing),
-    available: !!(current && !session.closing),
-    pendingTime: pendingTime,
-    pausedTime: pausedTime,
+    active: !!session.active,
+    available: (timeRemainingMs > 0 || remainingUses > 0) && !session.closing,
     closing: !!session.closing,
     inConversation: !!session.inConversation,
-    current: current ? {
-      id: current.id,
-      pid: current.pid,
-      pname: current.pname,
-      type: current.type,
-      status: current.status || (current.activeAt ? "active" : "pending"),
-      remainingMs,
-      remainingUses,
-      expiresAt: current.expiresAt || null
-    } : null,
-    queue,
-    canEnd: true
+    timeRemainingMs,
+    remainingUses,
+    timeActive: !!session.timeActiveAt,
+    paused: timeRemainingMs > 0 && !session.timeActiveAt,
+    // 兼容旧前端字段
+    current: null,
+    queue: []
   };
 }
 
@@ -317,7 +245,7 @@ async function handleAdminStats(request, env) {
   ]);
   const totalTokens = usage.reduce((a, u) => a + Number(u.totalTokens || 0), 0);
   const totalCost = usage.reduce((a, u) => a + Number(u.cost || 0), 0);
-  const activeSessions = sessions.filter(s => s.active).length;
+  const activeSessions = sessions.filter(s => Number(s.timeRemainingMs || 0) > 0 || Number(s.remainingUses || 0) > 0).length;
   const byProduct = {};
   for (const r of redemptions) {
     const k = r.pname || r.pid || "未知套餐";
@@ -389,9 +317,15 @@ async function handleRedeem(request, env) {
     session = newSession(clientId);
     sessionKey = "session:" + session.token;
   }
-  session.grants.push(makeGrant(payload, now));
+  migrateSession(session, now);
+  if (payload.type === "time") {
+    session.timeRemainingMs = Number(session.timeRemainingMs || 0) + Number(payload.durationSeconds) * 1000;
+    if (session.inConversation && !session.timeActiveAt) session.timeActiveAt = now;
+  } else {
+    session.remainingUses = Number(session.remainingUses || 0) + Number(payload.uses);
+  }
   session.closing = false;
-  refreshSession(session, now, false);
+  refreshSession(session, now, session.inConversation);
   await kvPutJson(env, sessionKey, session, { expirationTtl: 90 * 86400 });
   if (clientId) {
     await env.LICENSE_KV.put("client:" + clientId, session.token, { expirationTtl: 90 * 86400 });
@@ -411,6 +345,13 @@ async function handleRedeem(request, env) {
   return json({
     ok: true,
     token: session.token,
+    added: {
+      type: payload.type,
+      pid: payload.pid || "",
+      pname: payload.pname || "",
+      durationSeconds: payload.durationSeconds || null,
+      uses: payload.uses || null
+    },
     status: statusPayload(session, now)
   }, 200, env);
 }
@@ -477,22 +418,23 @@ async function handleChat(request, env) {
       status: statusPayload(session, now)
     }, 403, env);
   }
-  if (!session.active || !session.grants || !session.grants.length) {
+  const useTime = Number(session.timeRemainingMs || 0) > 0 || !!session.timeActiveAt;
+  if (!session.active && !useTime && Number(session.remainingUses || 0) <= 0) {
     return json({ ok: false, error: "NO_ACTIVE_LICENSE", message: "没有可用时长/次数，请先激活或加时。", status: statusPayload(session, now) }, 402, env);
   }
 
-  const current = session.grants[0];
   let consumedCount = false;
-  if (current.type === "count") {
-    if (Number(current.remainingUses || 0) <= 0) {
+  if (!useTime) {
+    if (Number(session.remainingUses || 0) <= 0) {
       refreshSession(session, now, true);
       return json({ ok: false, error: "NO_ACTIVE_LICENSE", message: "次数已用完，请激活新的次数套餐。", status: statusPayload(session, now) }, 402, env);
     }
-    current.remainingUses = Number(current.remainingUses) - 1;
+    session.remainingUses = Math.max(0, Number(session.remainingUses || 0) - 1);
     consumedCount = true;
   }
   session.inConversation = true;
   session.updatedAt = now;
+  refreshSession(session, now, true);
   await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
 
   const knowledgePoint = String(body.knowledgePoint || "");
@@ -534,7 +476,7 @@ async function handleChat(request, env) {
     })
   }).catch(async (e) => {
     if (consumedCount) {
-      current.remainingUses = Number(current.remainingUses) + 1;
+      session.remainingUses = Number(session.remainingUses || 0) + 1;
       await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
     }
     throw e;
@@ -542,7 +484,7 @@ async function handleChat(request, env) {
 
   if (!upstream.ok) {
     if (consumedCount) {
-      current.remainingUses = Number(current.remainingUses) + 1;
+      session.remainingUses = Number(session.remainingUses || 0) + 1;
       await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
     }
     const text = await upstream.text().catch(() => "");
@@ -599,13 +541,7 @@ async function handlePause(request, env) {
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新输入激活码。" }, 404, env);
   const now = Date.now();
   refreshSession(session, now, false);
-  const g = session.grants && session.grants[0];
-  if (g && g.type === "time" && g.activeAt && g.expiresAt && now < Number(g.expiresAt)) {
-    g.pausedRemainingMs = Math.max(0, Number(g.expiresAt) - now);
-    g.activeAt = null;
-    g.expiresAt = null;
-    g.status = "paused";
-  }
+  session.timeActiveAt = null;
   session.inConversation = false;
   session.updatedAt = now;
   await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
@@ -635,17 +571,11 @@ async function handleEnd(request, env) {
   const session = await kvGetJson(env, "session:" + token);
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND" }, 404, env);
   const now = Date.now();
-  const g = session.grants && session.grants[0];
-  if (g && g.type === "time" && g.activeAt && g.expiresAt && now < Number(g.expiresAt)) {
-    g.pausedRemainingMs = Math.max(0, Number(g.expiresAt) - now);
-    g.activeAt = null;
-    g.expiresAt = null;
-    g.status = "paused";
-  }
+  refreshSession(session, now, false);
+  session.timeActiveAt = null;
   session.inConversation = false;
   session.closing = false;
   session.updatedAt = now;
-  refreshSession(session, now, false);
   await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
   return json({ ok: true, status: statusPayload(session, now) }, 200, env);
 }

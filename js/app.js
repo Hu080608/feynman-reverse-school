@@ -195,7 +195,7 @@
     if (els.openSessionBtn) els.openSessionBtn.disabled = sessionCount === 0;
     if (els.resumePausedBtn) {
       const st = state.backendStatus;
-      const paused = !!(st && st.pausedTime && s && !s.endedAt);
+      const paused = !!(st && st.paused && Number(st.timeRemainingMs || 0) > 0 && s && !s.endedAt);
       els.resumePausedBtn.classList.toggle("hidden", !paused);
     }
     if (els.pauseExitBtn) {
@@ -420,64 +420,49 @@
     const st = state.backendStatus;
     const closing = !!(st && st.closing);
     const available = !!(st && (st.available != null ? st.available : st.active) && !st.closing);
+    let timeMs = 0;
+    let uses = 0;
+    if (st && (st.timeRemainingMs != null || st.remainingUses != null)) {
+      timeMs = Number(st.timeRemainingMs || 0);
+      uses = Number(st.remainingUses || 0);
+    } else if (st) {
+      // 兼容旧版 Worker 状态
+      const q = st.queue && st.queue.length ? st.queue : (st.current ? [st.current] : []);
+      timeMs = q.filter(g => g && g.type === "time").reduce((a, g) => a + Number(g.remainingMs || 0), 0);
+      uses = q.filter(g => g && g.type === "count").reduce((a, g) => a + Number(g.remainingUses || 0), 0);
+    }
+    if (st && st.timeActive && state.backendStatusAt) {
+      timeMs = Math.max(0, timeMs - (Date.now() - state.backendStatusAt));
+    }
     if (closing) {
-      els.timePill.textContent = "时长已到 · 请结束本次对话";
+      els.timePill.textContent = "已到时限 · 请结束本次对话";
       els.timePill.className = "pill warn";
-    } else if (st && st.current) {
-      const c = st.current;
-      if (c.type === "time") {
-        if (c.status === "pending") {
-          els.timePill.textContent = "待开始：进入对话后计时";
-          els.timePill.className = "pill warn";
-        } else if (c.status === "paused") {
-          els.timePill.textContent = "已暂停：剩余 " + formatDuration(Number(c.remainingMs || 0));
-          els.timePill.className = "pill warn";
-        } else {
-          let ms = Number(c.remainingMs || 0);
-          if (state.backendStatusAt) ms = Math.max(0, ms - (Date.now() - state.backendStatusAt));
-          els.timePill.textContent = "剩余：" + formatDuration(ms);
-          els.timePill.className = "pill " + (ms > 0 ? "ok" : "warn");
-        }
-      } else {
-        els.timePill.textContent = "剩余：" + Number(c.remainingUses || 0) + " 次";
-        els.timePill.className = "pill ok";
-      }
+    } else if (timeMs > 0 && uses > 0) {
+      els.timePill.textContent = "剩余：" + formatDuration(timeMs) + " / " + uses + " 次";
+      els.timePill.className = "pill ok";
+    } else if (timeMs > 0) {
+      els.timePill.textContent = (st && st.paused ? "已暂停：" : "剩余：") + formatDuration(timeMs);
+      els.timePill.className = "pill " + (st && st.paused ? "warn" : "ok");
+    } else if (uses > 0) {
+      els.timePill.textContent = "剩余：" + uses + " 次";
+      els.timePill.className = "pill ok";
     } else {
       els.timePill.textContent = "剩余：0";
       els.timePill.className = "pill bad";
     }
     els.licensePill.textContent = closing ? "待结束" : (available ? "已授权" : (state.backendToken ? "已到期" : "未激活"));
     els.licensePill.className = "pill " + (available ? "ok" : (closing ? "warn" : (state.backendToken ? "bad" : "")));
-    const q = (st && st.queue) || [];
-    if (els.queueInfo) {
-      if (q.length > 1) {
-        els.queueInfo.textContent = "当前套餐：" + (q[0].pname || q[0].pid || "套餐") +
-          (q[0].status === "pending" ? "（待开始）" : "") +
-          "；排队中：" + q.slice(1).map(g => (g.pname || g.pid || "套餐")).join(" → ");
-      } else if (q.length === 1) {
-        els.queueInfo.textContent = "当前套餐：" + (q[0].pname || q[0].pid || "套餐") +
-          (q[0].status === "pending" ? "（待开始，进入对话后计时）" : "");
-      } else {
-        els.queueInfo.textContent = "";
-      }
-    }
     if (els.balancePanel) {
-      if (!q.length) {
-        els.balancePanel.innerHTML = '<div class="balance-title">全部余额</div><div class="balance-item"><span>暂无可用套餐</span></div>';
-      } else {
-        els.balancePanel.innerHTML = '<div class="balance-title">全部余额</div>' + q.map(g => {
-          const name = escapeHtml(g.pname || g.pid || "套餐");
-          const type = g.type === "time" ? "时长" : "次数";
-          const rem = g.type === "time"
-            ? (g.remainingMs != null ? formatDuration(Number(g.remainingMs)) : "待开始")
-            : (g.remainingUses != null ? g.remainingUses + " 次" : "-");
-          const status = g.status === "active" ? "使用中" : (g.status === "paused" ? "已暂停" : (g.status === "pending" ? "排队中" : "已用完"));
-          return '<div class="balance-item"><span>' + name + '</span><b>' + rem + '</b><em>' + type + ' · ' + status + '</em></div>';
-        }).join("");
-      }
+      const timeStatus = !st ? "无" : (st.timeActive ? "使用中" : (st.paused && timeMs > 0 ? "已暂停" : (timeMs > 0 ? "未开始" : "已用完")));
+      els.balancePanel.innerHTML =
+        '<div class="balance-title">全部余额</div>' +
+        '<div class="balance-item"><span>时长余额</span><b>' + formatDuration(timeMs) + '</b><em>时长 · ' + timeStatus + '</em></div>' +
+        '<div class="balance-item"><span>次数余额</span><b>' + uses + ' 次</b><em>次数 · ' + (uses > 0 ? "可用" : "已用完") + '</em></div>';
     }
+    if (els.queueInfo) els.queueInfo.textContent = "";
     updateControls();
   }
+
 
   function renderAll() {
     const s = currentSession();
@@ -520,12 +505,18 @@
       state.backendStatusAt = Date.now();
       saveState();
       els.activationCode.value = "";
-      const current = state.backendStatus && state.backendStatus.current;
-      const q = (state.backendStatus && state.backendStatus.queue) || [];
-      let extra = "";
-      if (q.length > 1) extra = " 已加入套餐队列，第 " + q.length + " 个生效。";
-      else if (current && current.type !== "time") extra = " 已加入余额。";
-      els.activationMsg.textContent = "激活成功：" + ((current && (current.pname || current.pid)) || "服务已到账") + "。" + extra;
+      const st = state.backendStatus || {};
+      const added = res.added || {};
+      let msgText = "激活成功：";
+      if (added.type === "time") {
+        msgText += "已增加 " + formatDuration(Number(added.durationSeconds || 0) * 1000) + " 时长。";
+      } else if (added.type === "count") {
+        msgText += "已增加 " + Number(added.uses || 0) + " 次。";
+      } else {
+        msgText += "服务已到账。";
+      }
+      msgText += " 当前总时长 " + formatDuration(Number(st.timeRemainingMs || 0)) + "，总次数 " + Number(st.remainingUses || 0) + " 次。";
+      els.activationMsg.textContent = msgText;
       renderTimer();
       toast("激活/加时成功");
       closeSidebar();
