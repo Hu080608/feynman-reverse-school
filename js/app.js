@@ -19,8 +19,7 @@
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), toast: $("toast"),
     sidebar: $("sidebar"), sidebarToggle: $("sidebarToggle"), sidebarClose: $("sidebarClose"),
     sidebarBackdrop: $("sidebarBackdrop"), lockHint: $("lockHint"), backSettingsBtn: $("backSettingsBtn"),
-    setupStep1: $("setupStep1"), setupStep2: $("setupStep2"), setupStep3: $("setupStep3"), setupHint: $("setupHint"),
-    resumeChatBtn: $("resumeChatBtn")
+    setupStep1: $("setupStep1"), setupStep2: $("setupStep2"), setupStep3: $("setupStep3"), setupHint: $("setupHint")
   };
 
   let state = loadState();
@@ -156,7 +155,7 @@
     if (!s) return;
     state.currentSessionId = s.id;
     saveState(); renderAll();
-    // 从历史记录打开的一律先进入只读模式；是否继续由用户在聊天页决定。
+    // 历史对话一律只读：不消耗额度，也不能继续发送。
     sessionStorage.setItem("feynman_readonly", "1");
     location.href = "chat.html";
   }
@@ -176,13 +175,9 @@
     if (els.userInput) els.userInput.disabled = readonly || !active || closing;
     if (els.continueBtn) els.continueBtn.disabled = sessionCount === 0;
     if (els.openSessionBtn) els.openSessionBtn.disabled = sessionCount === 0;
-    if (els.resumeChatBtn) {
-      const canResume = readonly && active && !!s;
-      els.resumeChatBtn.classList.toggle("hidden", !canResume);
-    }
     if (els.lockHint) {
       if (readonly) {
-        els.lockHint.textContent = "只读模式：正在查看历史对话。激活或加时后才能继续发送。";
+        els.lockHint.textContent = "只读模式：历史对话仅查看，不消耗额度，也不能继续发送。";
         els.lockHint.className = "lock-hint danger";
       } else if (!backendReady()) {
         els.lockHint.textContent = "后端未配置：请检查 js/config.js 的 BACKEND.url。";
@@ -220,7 +215,7 @@
     }
     if (els.setupHint) {
       if (readonly) {
-        els.setupHint.textContent = "当前是只读模式：可以查看历史对话，激活或加时后才能继续发送。";
+        els.setupHint.textContent = "当前是只读模式：历史对话仅查看，不消耗额度，也不能继续发送。";
       } else if (!state.backendToken) {
         els.setupHint.textContent = "第 1 步：请先输入激活码。";
       } else if (!active) {
@@ -572,7 +567,7 @@
   }
 
   async function send() {
-    if (isReadonlyMode()) { toast("只读模式：激活或加时后才能继续发送。"); return; }
+    if (isReadonlyMode()) { toast("只读模式：历史对话仅查看，不能继续发送。"); return; }
     const s = ensureSession();
     const text = els.userInput.value.trim();
     if (!s.knowledgePoint) { toast("请先填写知识点。"); els.knowledgePoint.focus(); return; }
@@ -740,22 +735,6 @@
       });
     }
     if (els.backSettingsBtn) els.backSettingsBtn.addEventListener("click", showSettings);
-    if (els.resumeChatBtn) {
-      els.resumeChatBtn.addEventListener("click", async () => {
-        const s = currentSession();
-        if (!s) return;
-        if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
-        if (s.endedAt) {
-          if (!confirm("这个对话之前已经结束，是否继续？")) return;
-          s.endedAt = null;
-          touchSession(s);
-        }
-        clearReadonlyMode();
-        document.body.classList.remove("readonly-mode");
-        updateControls();
-        await startChatSession();
-      });
-    }
     if (els.endSessionBtn) {
       els.endSessionBtn.addEventListener("click", async () => {
         const s = currentSession();
@@ -800,6 +779,8 @@
       const s = currentSession();
       if (!s) { location.replace("index.html"); return; }
       if (isReadonlyMode()) {
+        if (els.endSessionBtn) els.endSessionBtn.textContent = "退出只读";
+        if (els.backSettingsBtn) els.backSettingsBtn.textContent = "返回设置";
         renderAll();
         updateControls();
         document.body.classList.add("readonly-mode");
@@ -807,6 +788,8 @@
         setInterval(tick, 1000);
         return;
       }
+      if (els.endSessionBtn) els.endSessionBtn.textContent = "结束本次对话";
+      if (els.backSettingsBtn) els.backSettingsBtn.textContent = "暂时退出";
       if (!canEnterChat()) { location.replace("index.html"); return; }
       clearReadonlyMode();
       renderAll();

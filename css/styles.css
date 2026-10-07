@@ -410,3 +410,10 @@ body.page-chat .chat-head{flex:0 0 auto!important}
   height:100%;width:0;background:linear-gradient(90deg,var(--brand2),var(--brand));
   transition:width .25s;
 }
+
+/* 只读标签 */
+.readonly-tag{
+  display:inline-flex;align-items:center;margin-left:8px;padding:2px 8px;border-radius:999px;
+  font-size:11px;font-weight:700;color:#fbd38d;background:rgba(245,158,11,.12);
+  border:1px solid rgba(245,158,11,.38);
+}
