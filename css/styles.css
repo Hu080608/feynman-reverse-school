@@ -450,3 +450,71 @@ body.page-chat .chat-head{flex:0 0 auto!important}
 .balance-item span{color:#dbe7ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .balance-item b{color:#9ef0b5;text-align:right}
 .balance-item em{grid-column:1/-1;color:#879bca;font-style:normal;font-size:11px}
+
+/* ========== 手机端对话页专项修复 ========== */
+@media (max-width:640px){
+  body.page-chat .chat-page{
+    width:100%!important;
+    padding:6px!important;
+    min-height:0!important;
+  }
+  body.page-chat .chat-panel{
+    width:100%!important;
+    border-radius:12px;
+    overflow:hidden;
+  }
+  body.page-chat .chat-head{
+    flex-direction:column;
+    gap:10px;
+    padding:12px;
+  }
+  body.page-chat .chat-head-actions{
+    flex-direction:column;
+    width:100%;
+    gap:8px;
+  }
+  body.page-chat .chat-head-actions .btn{
+    width:100%;
+  }
+  body.page-chat .chat-messages{
+    padding:12px;
+    gap:12px;
+  }
+  body.page-chat .msg{
+    max-width:100%;
+  }
+  body.page-chat .bubble{
+    padding:11px 12px;
+    border-radius:14px;
+  }
+  body.page-chat .composer{
+    position:static!important;
+    padding:10px 10px 12px;
+  }
+  body.page-chat .composer-actions{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  body.page-chat .composer-actions .btn{
+    width:100%;
+  }
+  body.page-chat .topbar{
+    padding:8px 10px;
+  }
+  body.page-chat .status-pills{
+    width:100%;
+    overflow-x:auto;
+    flex-wrap:nowrap;
+    justify-content:flex-start;
+    padding-bottom:2px;
+  }
+  body.page-chat .brand h1{
+    font-size:16px;
+  }
+  body.page-chat .brand p{
+    display:none;
+  }
+  body.page-chat .app-meta{
+    padding:4px 0 6px!important;
+  }
+}
