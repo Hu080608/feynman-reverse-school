@@ -400,3 +400,13 @@ body.page-chat .composer{
   bottom:0!important;
 }
 body.page-chat .chat-head{flex:0 0 auto!important}
+
+/* OCR 进度条 */
+.ocr-progress{
+  height:10px;border-radius:999px;background:#080d1e;border:1px solid var(--line);
+  overflow:hidden;margin-top:10px;
+}
+.ocr-progress-inner{
+  height:100%;width:0;background:linear-gradient(90deg,var(--brand2),var(--brand));
+  transition:width .25s;
+}

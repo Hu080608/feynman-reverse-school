@@ -13,7 +13,7 @@
     openSessionBtn: $("openSessionBtn"), activationCode: $("activationCode"), activateBtn: $("activateBtn"),
     activationMsg: $("activationMsg"), masteryBar: $("masteryBar"), masteryText: $("masteryText"),
     passBadge: $("passBadge"), queueInfo: $("queueInfo"), imageInput: $("imageInput"), ocrBtn: $("ocrBtn"), ocrStatus: $("ocrStatus"),
-    ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), chatTitle: $("chatTitle"),
+    ocrText: $("ocrText"), insertOcrBtn: $("insertOcrBtn"), ocrProgressBar: $("ocrProgressBar"), ocrProgressText: $("ocrProgressText"), chatTitle: $("chatTitle"),
     chatSubtitle: $("chatSubtitle"), chatMessages: $("chatMessages"), apiError: $("apiError"),
     userInput: $("userInput"), sendBtn: $("sendBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"),
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), toast: $("toast"),
@@ -604,33 +604,87 @@
   }
 
   /* ---------------- OCR ---------------- */
+  function setOcrProgress(pct, text) {
+    const p = Math.max(0, Math.min(100, Math.round(pct)));
+    if (els.ocrProgressBar) els.ocrProgressBar.style.width = p + "%";
+    if (els.ocrProgressText) els.ocrProgressText.textContent = text || (p + "%");
+  }
+
+  async function fetchLanguageWithProgress(url, label, startPct, endPct) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90000);
+    try {
+      const res = await fetch(url, { signal: controller.signal, cache: "force-cache" });
+      if (!res.ok) throw new Error(label + "失败：" + res.status);
+      const total = Number(res.headers.get("content-length") || 0);
+      if (!res.body || !total) {
+        setOcrProgress(endPct, label + "完成");
+        return;
+      }
+      const reader = res.body.getReader();
+      let received = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        received += value.length;
+        const ratio = Math.min(1, received / total);
+        setOcrProgress(startPct + (endPct - startPct) * ratio, label + " " + Math.round(ratio * 100) + "%");
+      }
+      setOcrProgress(endPct, label + "完成");
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function runOcr() {
     const file = els.imageInput.files && els.imageInput.files[0];
     if (!file) { toast("请先选择一张图片。"); return; }
-    if (!window.Tesseract) { els.ocrStatus.textContent = "OCR 组件未加载：请检查网络/CDN 是否可访问。"; return; }
+    if (!window.Tesseract) { els.ocrStatus.textContent = "OCR 组件未加载：请检查网络/CDN 是否可访问。"; setOcrProgress(0, ""); return; }
     els.ocrBtn.disabled = true;
-    els.ocrStatus.textContent = "正在识别：0%";
+    els.ocrStatus.textContent = "准备 OCR...";
+    setOcrProgress(2, "准备 OCR...");
     try {
+      const base = new URL("vendor/tessdata/", location.href).href;
+      // 先手动预加载语言包，并显示真实下载进度；Tesseract 后续会优先走浏览器缓存。
+      await fetchLanguageWithProgress(base + "eng.traineddata.gz", "加载英文语言包", 2, 12);
+      await fetchLanguageWithProgress(base + "chi_sim.traineddata.gz", "加载中文语言包", 12, 25);
+
+      setOcrProgress(28, "启动 OCR 引擎...");
       const result = await window.Tesseract.recognize(file, cfg.APP.ocrLang || "chi_sim+eng", {
-        // 使用国内 npmmirror CDN，避免 jsdelivr 在大陆被墙
         workerPath: "https://cdn.npmmirror.com/packages/tesseract.js/5.1.1/files/dist/worker.min.js",
         corePath: "https://cdn.npmmirror.com/packages/tesseract.js-core/5.1.1/files/",
-        // 语言包已放在本站 vendor/tessdata 目录，避免外网语言包加载失败
-        langPath: new URL("vendor/tessdata/", location.href).href,
+        langPath: base,
         gzip: true,
         logger: m => {
-          if (m.status === "recognizing text") els.ocrStatus.textContent = "正在识别：" + Math.round((m.progress || 0) * 100) + "%";
-          else els.ocrStatus.textContent = m.status || "处理中...";
+          const status = m.status || "处理中";
+          if (status === "recognizing text") {
+            const pct = 55 + 45 * (m.progress || 0);
+            setOcrProgress(pct, "正在识别文字 " + Math.round((m.progress || 0) * 100) + "%");
+          } else if (status === "loading language traineddata") {
+            setOcrProgress(40, "加载语言包...");
+          } else if (status === "initializing tesseract") {
+            setOcrProgress(32, "初始化 OCR 引擎...");
+          } else if (status === "loading tesseract core") {
+            setOcrProgress(30, "加载 OCR 核心...");
+          } else {
+            const current = els.ocrProgressBar ? Number(String(els.ocrProgressBar.style.width).replace("%", "")) : 30;
+            setOcrProgress(Number.isFinite(current) ? Math.max(30, current) : 30, status);
+          }
+          els.ocrStatus.textContent = status + (m.progress ? " " + Math.round(m.progress * 100) + "%" : "");
         }
       });
       els.ocrText.value = (result && result.data && result.data.text ? result.data.text : "").trim();
+      setOcrProgress(100, "识别完成");
       els.ocrStatus.textContent = els.ocrText.value ? "识别完成，请检查并修改下方文字。" : "没有识别到文字，请换一张更清晰的图片。";
     } catch (e) {
-      els.ocrStatus.textContent = "识别失败：" + (e && e.message ? e.message : e);
+      const msg = e && e.name === "AbortError" ? "语言包加载超时，请检查网络后重试。" : (e && e.message ? e.message : e);
+      els.ocrStatus.textContent = "识别失败：" + msg;
+      setOcrProgress(0, "识别失败");
     } finally {
       els.ocrBtn.disabled = false;
     }
   }
+
   /* ---------------- 事件绑定 ---------------- */
   function bind() {
     if (els.knowledgePoint) {
