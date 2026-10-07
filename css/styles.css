@@ -343,3 +343,18 @@ body:not(.chat-mode) .btn-row .btn{white-space:nowrap}
   .advanced > summary{padding:14px}
   .advanced-body{padding:0 14px 16px}
 }
+
+/* 强力保证设置页单列 */
+body.page-settings .settings-page{
+  display:block!important;
+  grid-template-columns:none!important;
+  width:100%!important;
+  max-width:860px!important;
+  margin:0 auto!important;
+}
+body.page-settings .settings-page > *{
+  width:100%!important;
+  grid-column:auto!important;
+  margin-left:0!important;
+  margin-right:0!important;
+}
