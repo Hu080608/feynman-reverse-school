@@ -3,10 +3,14 @@
 """
 费曼反向学校 - 激活码生成器 GUI（HMAC-SHA256 v2，与 Cloudflare Worker 一致）
 """
-import base64, csv, hashlib, hmac, json, os, re, time, tkinter as tk, uuid
+import base64, csv, hashlib, hmac, json, os, re, sys, time, tkinter as tk, uuid
 from tkinter import filedialog, messagebox, ttk
 
 TITLE = "费曼反向学校 - 激活码生成器"
+
+def resource_path(rel):
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, rel)
 
 def b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
@@ -26,27 +30,47 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(TITLE)
-        self.geometry("820x640")
-        self.minsize(760, 560)
+        self.geometry("900x720")
+        self.minsize(820, 640)
         self.configure(bg="#0b1020")
+        try: self.option_add("*Font", ("Microsoft YaHei UI", 10))
+        except Exception: pass
         self.style = ttk.Style(self)
         try: self.style.theme_use("clam")
         except tk.TclError: pass
         self.style.configure(".", background="#0b1020", foreground="#eef4ff", fieldbackground="#101a30")
         self.style.configure("TLabel", background="#0b1020", foreground="#c9d7ff")
         self.style.configure("TFrame", background="#0b1020")
-        self.style.configure("Primary.TButton", foreground="#06101f", background="#6d8cff")
+        self.style.configure("TLabelframe", background="#0b1020", foreground="#dbe7ff")
+        self.style.configure("TLabelframe.Label", background="#0b1020", foreground="#dbe7ff", font=("Microsoft YaHei UI", 10, "bold"))
+        self.style.configure("Primary.TButton", foreground="#06101f", background="#6d8cff", padding=9)
+        self.style.map("Primary.TButton", background=[("active", "#8aa4ff")])
+        self.status_var = tk.StringVar(value="就绪")
         self._build()
         self._sync_type()
+        try:
+            icon_png = resource_path("assets/icon.png")
+            self._icon_img = tk.PhotoImage(file=icon_png)
+            self.iconphoto(True, self._icon_img)
+        except Exception:
+            pass
 
     def _build(self):
-        pad = {"padx": 12, "pady": 6}
-        main = ttk.Frame(self, padding=16); main.pack(fill="both", expand=True)
-        tk.Label(main, text="费曼反向学校 · 激活码生成器", font=("Microsoft YaHei", 18, "bold"),
+        pad = {"padx": 12, "pady": 7}
+        main = ttk.Frame(self, padding=18); main.pack(fill="both", expand=True)
+        header = tk.Frame(main, bg="#0b1020"); header.pack(fill="x", pady=(0, 14))
+        try:
+            img = tk.PhotoImage(file=resource_path("assets/icon.png")).subsample(2, 2)
+            self._header_img = img
+            tk.Label(header, image=img, bg="#0b1020").pack(side="left", padx=(0, 12))
+        except Exception:
+            pass
+        title_box = tk.Frame(header, bg="#0b1020"); title_box.pack(side="left", anchor="w")
+        tk.Label(title_box, text="费曼反向学校 · 激活码生成器", font=("Microsoft YaHei UI", 20, "bold"),
                  bg="#0b1020", fg="#eef4ff").pack(anchor="w")
-        tk.Label(main, text="密钥必须与 Cloudflare Worker 的 LICENSE_SECRET 完全一致；兑换后全平台只能使用一次。",
-                 bg="#0b1020", fg="#93a6cf", font=("Microsoft YaHei", 10)).pack(anchor="w", pady=(0, 10))
-        form = ttk.Frame(main); form.pack(fill="x")
+        tk.Label(title_box, text="HMAC-SHA256 v2 · 与 Cloudflare Worker 完全一致 · 全平台一次核销",
+                 bg="#0b1020", fg="#93a6cf", font=("Microsoft YaHei UI", 10)).pack(anchor="w", pady=(3, 0))
+        form = ttk.LabelFrame(main, text="生成信息", padding=14); form.pack(fill="x")
         self.secret = tk.StringVar(); self.pid = tk.StringVar(value="trial_1h")
         self.pname = tk.StringVar(value="体验装-1小时"); self.typ = tk.StringVar(value="time")
         self.duration = tk.StringVar(value="1h"); self.uses = tk.StringVar(value="20")
@@ -76,9 +100,16 @@ class App(tk.Tk):
         ttk.Button(btns, text="生成激活码", style="Primary.TButton", command=self.generate).pack(side="left")
         ttk.Button(btns, text="复制全部", command=self.copy_all).pack(side="left", padx=8)
         ttk.Button(btns, text="清空结果", command=lambda: self.result.delete("1.0","end")).pack(side="left")
-        self.result = tk.Text(main, height=14, bg="#070b16", fg="#d8e3ff", relief="flat",
-                              wrap="none", font=("Consolas", 10))
-        self.result.pack(fill="both", expand=True, pady=(4,0))
+        result_box = tk.Frame(main, bg="#0b1020"); result_box.pack(fill="both", expand=True, pady=(14,0))
+        self.result = tk.Text(result_box, height=14, bg="#070b16", fg="#d8e3ff", insertbackground="#d8e3ff",
+                              relief="flat", wrap="none", font=("Consolas", 10), padx=10, pady=10)
+        scroll = ttk.Scrollbar(result_box, orient="vertical", command=self.result.yview)
+        self.result.configure(yscrollcommand=scroll.set)
+        self.result.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+        status = tk.Label(main, textvariable=self.status_var, anchor="w", bg="#0b1020", fg="#8fa3cf",
+                          font=("Microsoft YaHei UI", 9), pady=6)
+        status.pack(fill="x")
 
     def _sync_type(self):
         if self.typ.get() == "time":
@@ -136,6 +167,7 @@ class App(tk.Tk):
         text = self.result.get("1.0","end").strip()
         if not text: return messagebox.showinfo("提示", "还没有生成结果")
         self.clipboard_clear(); self.clipboard_append(text)
+        self.status_var.set("已复制全部激活码到剪贴板")
         messagebox.showinfo("成功", "已复制全部激活码")
 
 if __name__ == "__main__":
