@@ -35,6 +35,9 @@
   async function status(token) {
     return postJson("/api/status", { token: token });
   }
+  async function start(token) {
+    return postJson("/api/start", { token: token });
+  }
   async function end(token) {
     return postJson("/api/end", { token: token });
   }
@@ -91,5 +94,5 @@
     return full;
   }
 
-  window.FeynmanBackend = { redeem, status, end, chat, baseUrl };
+  window.FeynmanBackend = { redeem, status, start, end, chat, baseUrl };
 })();

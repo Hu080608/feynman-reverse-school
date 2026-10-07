@@ -131,27 +131,48 @@ function makeGrant(payload, now) {
  * - 次数套餐：队首时开始扣次，次数为 0 后出队并启用下一个。
  * - 当前没有更多套餐且用户还在对话中时，标记 closing，只允许用户结束本次对话。
  */
-function refreshSession(session, now) {
+function startTimeGrant(g, startAt) {
+  g.activeAt = Number(startAt) || Date.now();
+  g.expiresAt = g.activeAt + Number(g.durationSeconds) * 1000;
+  g.status = "active";
+}
+
+/**
+ * 刷新套餐队列。
+ * startTime=false：时间套餐没开始时保持 pending，不自动计时。
+ * startTime=true：用户进入 chat.html 或发消息时，启动队首的时间套餐。
+ * 时间套餐不暂停：上一位到期后，下一位从上一位到期时间接着计时。
+ */
+function refreshSession(session, now, startTime) {
   now = now || Date.now();
   let changed = false;
   while (session.grants && session.grants.length) {
     const g = session.grants[0];
     if (g.type === "time") {
       if (!g.activeAt) {
-        g.activeAt = now;
-        g.expiresAt = now + Number(g.durationSeconds) * 1000;
-        g.status = "active";
-        changed = true;
+        if (startTime) {
+          startTimeGrant(g, now);
+          changed = true;
+        } else {
+          g.status = "pending";
+        }
         break;
       }
       if (now < Number(g.expiresAt)) {
         g.status = "active";
         break;
       }
+      // 当前时间套餐到期，记录到期时间，下一位时间套餐接着算
+      const expiredAt = Number(g.expiresAt) || now;
       g.status = "done";
       session.grants.shift();
       changed = true;
-      if (session.inConversation && session.grants.length === 0) session.closing = true;
+      const next = session.grants[0];
+      if (next && next.type === "time" && !next.activeAt) {
+        startTimeGrant(next, expiredAt);
+        changed = true;
+        continue;
+      }
       continue;
     }
     if (g.remainingUses == null) g.remainingUses = Number(g.uses);
@@ -162,13 +183,17 @@ function refreshSession(session, now) {
     g.status = "done";
     session.grants.shift();
     changed = true;
-    if (session.inConversation && session.grants.length === 0) session.closing = true;
   }
   if (!session.grants || session.grants.length === 0) {
     session.active = false;
+    session.closing = !!session.inConversation;
   } else {
-    session.active = true;
-    session.closing = false;
+    const g = session.grants[0];
+    const active = g.type === "count"
+      ? Number(g.remainingUses || 0) > 0
+      : !!(g.activeAt && now < Number(g.expiresAt));
+    session.active = active;
+    if (active) session.closing = false;
   }
   session.updatedAt = now;
   return changed;
@@ -176,20 +201,25 @@ function refreshSession(session, now) {
 
 function statusPayload(session, now) {
   now = now || Date.now();
-  refreshSession(session, now);
+  refreshSession(session, now, false);
   const current = session.grants && session.grants[0] ? session.grants[0] : null;
   const queue = (session.grants || []).map(g => {
     const item = { id: g.id, pid: g.pid, pname: g.pname, type: g.type, status: g.status };
-    if (g.type === "time") item.remainingMs = Math.max(0, Number(g.expiresAt || now) - now);
+    if (g.type === "time") item.remainingMs = g.activeAt && g.expiresAt ? Math.max(0, Number(g.expiresAt) - now) : null;
     else item.remainingUses = Number(g.remainingUses || 0);
     return item;
   });
   let remainingMs = null;
   let remainingUses = null;
-  if (current && current.type === "time") remainingMs = Math.max(0, Number(current.expiresAt || now) - now);
+  if (current && current.type === "time" && current.activeAt && current.expiresAt) {
+    remainingMs = Math.max(0, Number(current.expiresAt) - now);
+  }
   if (current && current.type === "count") remainingUses = Number(current.remainingUses || 0);
+  const pendingTime = !!(current && current.type === "time" && !current.activeAt);
   return {
-    active: !!(current && !session.closing),
+    active: !!(current && current.status === "active" && !session.closing),
+    available: !!(current && !session.closing),
+    pendingTime: pendingTime,
     closing: !!session.closing,
     inConversation: !!session.inConversation,
     current: current ? {
@@ -197,6 +227,7 @@ function statusPayload(session, now) {
       pid: current.pid,
       pname: current.pname,
       type: current.type,
+      status: current.status || (current.activeAt ? "active" : "pending"),
       remainingMs,
       remainingUses,
       expiresAt: current.expiresAt || null
@@ -339,7 +370,8 @@ async function handleRedeem(request, env) {
     sessionKey = "session:" + session.token;
   }
   session.grants.push(makeGrant(payload, now));
-  refreshSession(session, now);
+  session.closing = false;
+  refreshSession(session, now, false);
   await kvPutJson(env, sessionKey, session, { expirationTtl: 90 * 86400 });
   if (clientId) {
     await env.LICENSE_KV.put("client:" + clientId, session.token, { expirationTtl: 90 * 86400 });
@@ -371,7 +403,7 @@ async function handleStatus(request, env) {
   const session = await kvGetJson(env, "session:" + token);
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新输入激活码。" }, 404, env);
   const now = Date.now();
-  const changed = refreshSession(session, now);
+  const changed = refreshSession(session, now, false);
   if (changed) await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
   return json({ ok: true, status: statusPayload(session, now) }, 200, env);
 }
@@ -416,7 +448,7 @@ async function handleChat(request, env) {
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新输入激活码。" }, 404, env);
 
   const now = Date.now();
-  refreshSession(session, now);
+  refreshSession(session, now, true);
   if (session.closing) {
     return json({
       ok: false,
@@ -433,7 +465,7 @@ async function handleChat(request, env) {
   let consumedCount = false;
   if (current.type === "count") {
     if (Number(current.remainingUses || 0) <= 0) {
-      refreshSession(session, now);
+      refreshSession(session, now, true);
       return json({ ok: false, error: "NO_ACTIVE_LICENSE", message: "次数已用完，请激活新的次数套餐。", status: statusPayload(session, now) }, 402, env);
     }
     current.remainingUses = Number(current.remainingUses) - 1;
@@ -532,6 +564,21 @@ async function handleChat(request, env) {
   });
 }
 
+async function handleStart(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const token = String(body.token || "");
+  if (!token) return json({ ok: false, error: "TOKEN_REQUIRED" }, 400, env);
+  const session = await kvGetJson(env, "session:" + token);
+  if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新输入激活码。" }, 404, env);
+  const now = Date.now();
+  session.inConversation = true;
+  session.updatedAt = now;
+  refreshSession(session, now, true);
+  await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
+  return json({ ok: true, status: statusPayload(session, now) }, 200, env);
+}
+
 async function handleEnd(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
@@ -542,7 +589,7 @@ async function handleEnd(request, env) {
   session.inConversation = false;
   session.closing = false;
   session.updatedAt = Date.now();
-  refreshSession(session, session.updatedAt);
+  refreshSession(session, session.updatedAt, false);
   await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
   return json({ ok: true, status: statusPayload(session, session.updatedAt) }, 200, env);
 }
@@ -558,6 +605,7 @@ async function handleRequest(request, env) {
   }
   if (path === "/api/redeem" && request.method === "POST") return handleRedeem(request, env);
   if (path === "/api/status" && request.method === "POST") return handleStatus(request, env);
+  if (path === "/api/start" && request.method === "POST") return handleStart(request, env);
   if (path === "/api/chat" && request.method === "POST") return handleChat(request, env);
   if (path === "/api/end" && request.method === "POST") return handleEnd(request, env);
   if (path === "/api/admin/login" && request.method === "POST") return handleAdminLogin(request, env);

@@ -68,7 +68,8 @@
     return !!(B && cfg.BACKEND && cfg.BACKEND.url);
   }
   function backendActive() {
-    return !!(state.backendStatus && state.backendStatus.active && !state.backendStatus.closing);
+    const st = state.backendStatus;
+    return !!(st && st.available && !st.closing);
   }
   function backendClosing() {
     return !!(state.backendStatus && state.backendStatus.closing);
@@ -93,6 +94,22 @@
       throw e;
     }
   }
+  async function startChatSession() {
+    if (!backendReady() || !state.backendToken) return false;
+    try {
+      const res = await B.start(state.backendToken);
+      state.backendStatus = res.status || null;
+      state.backendStatusAt = Date.now();
+      saveState();
+      renderTimer();
+      maybeStartAi(currentSession());
+      return true;
+    } catch (e) {
+      showApiError(e && e.message ? e.message : "无法开始本次对话。");
+      return false;
+    }
+  }
+
   function maybeStartAi(s) {
     if (!s || s.messages.length > 0 || sending) return;
     if (backendActive()) requestAi(s, true);
@@ -114,6 +131,7 @@
     if (!state.backendToken) { toast("请先输入激活码。"); return false; }
     if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return false; }
     if (!s) { toast("请先填写知识点并点击“开始新对话”。"); return false; }
+    if (!s.knowledgePoint || !String(s.knowledgePoint).trim()) { toast("请先填写知识点。"); return false; }
     if (s.endedAt) { toast("该对话已结束，请开始新的对话。"); return false; }
     return true;
   }
@@ -347,18 +365,23 @@
   function renderTimer() {
     if (!els.timePill || !els.licensePill) return;
     const st = state.backendStatus;
-    const active = !!(st && st.active && !st.closing);
     const closing = !!(st && st.closing);
+    const available = !!(st && st.available && !st.closing);
     if (closing) {
       els.timePill.textContent = "时长已到 · 请结束本次对话";
       els.timePill.className = "pill warn";
     } else if (st && st.current) {
       const c = st.current;
       if (c.type === "time") {
-        let ms = Number(c.remainingMs || 0);
-        if (state.backendStatusAt) ms = Math.max(0, ms - (Date.now() - state.backendStatusAt));
-        els.timePill.textContent = "剩余：" + formatDuration(ms);
-        els.timePill.className = "pill " + (ms > 0 ? "ok" : "warn");
+        if (c.status === "pending") {
+          els.timePill.textContent = "待开始：进入对话后计时";
+          els.timePill.className = "pill warn";
+        } else {
+          let ms = Number(c.remainingMs || 0);
+          if (state.backendStatusAt) ms = Math.max(0, ms - (Date.now() - state.backendStatusAt));
+          els.timePill.textContent = "剩余：" + formatDuration(ms);
+          els.timePill.className = "pill " + (ms > 0 ? "ok" : "warn");
+        }
       } else {
         els.timePill.textContent = "剩余：" + Number(c.remainingUses || 0) + " 次";
         els.timePill.className = "pill ok";
@@ -367,21 +390,24 @@
       els.timePill.textContent = "剩余：0";
       els.timePill.className = "pill bad";
     }
-    els.licensePill.textContent = closing ? "待结束" : (active ? "已授权" : (state.backendToken ? "已到期" : "未激活"));
-    els.licensePill.className = "pill " + (active ? "ok" : (closing ? "warn" : (state.backendToken ? "bad" : "")));
+    els.licensePill.textContent = closing ? "待结束" : (available ? "已授权" : (state.backendToken ? "已到期" : "未激活"));
+    els.licensePill.className = "pill " + (available ? "ok" : (closing ? "warn" : (state.backendToken ? "bad" : "")));
     const q = (st && st.queue) || [];
     if (els.queueInfo) {
       if (q.length > 1) {
         els.queueInfo.textContent = "当前套餐：" + (q[0].pname || q[0].pid || "套餐") +
+          (q[0].status === "pending" ? "（待开始）" : "") +
           "；排队中：" + q.slice(1).map(g => (g.pname || g.pid || "套餐")).join(" → ");
       } else if (q.length === 1) {
-        els.queueInfo.textContent = "当前套餐：" + (q[0].pname || q[0].pid || "套餐");
+        els.queueInfo.textContent = "当前套餐：" + (q[0].pname || q[0].pid || "套餐") +
+          (q[0].status === "pending" ? "（待开始，进入对话后计时）" : "");
       } else {
         els.queueInfo.textContent = "";
       }
     }
     updateControls();
   }
+
   function renderAll() {
     const s = currentSession();
     if (s && els.knowledgePoint) {
@@ -670,7 +696,7 @@
       renderAll();
       updateControls();
       if (backendReady() && state.backendToken) {
-        refreshStatus(true).then(() => maybeStartAi(currentSession())).catch(() => {});
+        startChatSession().catch(() => {});
       }
       tick();
       setInterval(tick, 1000);

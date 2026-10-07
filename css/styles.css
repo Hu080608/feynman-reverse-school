@@ -375,3 +375,28 @@ body.page-settings .settings-page > *{
 }
 .sub-tools input[type="file"]{margin-bottom:8px}
 .sub-tools .btn{margin-top:6px}
+
+/* 独立 chat.html 必须显示对话面板 */
+body.page-chat .chat-panel{
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:0!important;
+  height:100%!important;
+}
+body.page-chat .chat-page{
+  flex:1!important;
+  min-height:0!important;
+  display:flex!important;
+  padding:12px!important;
+}
+body.page-chat .chat-messages{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+}
+body.page-chat .composer{
+  flex:0 0 auto!important;
+  position:sticky!important;
+  bottom:0!important;
+}
+body.page-chat .chat-head{flex:0 0 auto!important}
