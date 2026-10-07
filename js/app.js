@@ -612,9 +612,9 @@
 
   async function fetchLanguageWithProgress(url, label, startPct, endPct) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 90000);
+    const timer = setTimeout(() => controller.abort(), 180000);
     try {
-      const res = await fetch(url, { signal: controller.signal, cache: "force-cache" });
+      const res = await fetch(url, { signal: controller.signal });
       if (!res.ok) throw new Error(label + "失败：" + res.status);
       const total = Number(res.headers.get("content-length") || 0);
       if (!res.body || !total) {
@@ -644,10 +644,10 @@
     els.ocrStatus.textContent = "准备 OCR...";
     setOcrProgress(2, "准备 OCR...");
     try {
-      const base = new URL("vendor/tessdata/", location.href).href;
+      const base = new URL("vendor/tessdata-v2", location.href).href;
       // 先手动预加载语言包，并显示真实下载进度；Tesseract 后续会优先走浏览器缓存。
-      await fetchLanguageWithProgress(base + "eng.traineddata.gz", "加载英文语言包", 2, 12);
-      await fetchLanguageWithProgress(base + "chi_sim.traineddata.gz", "加载中文语言包", 12, 25);
+      await fetchLanguageWithProgress(base + "/eng.traineddata.gz", "加载英文语言包", 2, 12);
+      await fetchLanguageWithProgress(base + "/chi_sim.traineddata.gz", "加载中文语言包", 12, 25);
 
       setOcrProgress(28, "启动 OCR 引擎...");
       const result = await window.Tesseract.recognize(file, cfg.APP.ocrLang || "chi_sim+eng", {
