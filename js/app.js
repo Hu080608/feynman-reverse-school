@@ -18,7 +18,8 @@
     userInput: $("userInput"), sendBtn: $("sendBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"),
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), toast: $("toast"),
     sidebar: $("sidebar"), sidebarToggle: $("sidebarToggle"), sidebarClose: $("sidebarClose"),
-    sidebarBackdrop: $("sidebarBackdrop"), lockHint: $("lockHint"), backSettingsBtn: $("backSettingsBtn")
+    sidebarBackdrop: $("sidebarBackdrop"), lockHint: $("lockHint"), backSettingsBtn: $("backSettingsBtn"),
+    setupStep1: $("setupStep1"), setupStep2: $("setupStep2"), setupStep3: $("setupStep3"), setupHint: $("setupHint")
   };
 
   let state = loadState();
@@ -126,8 +127,11 @@
   function updateControls() {
     const active = backendActive();
     const closing = backendClosing();
-    const hasSession = !!currentSession();
+    const s = currentSession();
+    const hasSession = !!s;
     const sessionCount = listSessions().length;
+    if (els.knowledgePoint) els.knowledgePoint.disabled = !active;
+    if (els.learningGoal) els.learningGoal.disabled = !active;
     if (els.newChatBtn) els.newChatBtn.disabled = !active;
     if (els.sendBtn) els.sendBtn.disabled = !active || sending || closing;
     if (els.retryBtn) els.retryBtn.disabled = !active || sending;
@@ -136,26 +140,51 @@
     if (els.openSessionBtn) els.openSessionBtn.disabled = sessionCount === 0;
     if (els.lockHint) {
       if (!backendReady()) {
-        els.lockHint.textContent = "后端未配置：请先在 js/config.js 中填写 BACKEND.url。";
+        els.lockHint.textContent = "后端未配置：请检查 js/config.js 的 BACKEND.url。";
         els.lockHint.className = "lock-hint danger";
       } else if (!state.backendToken) {
-        els.lockHint.textContent = "请先在左侧“激活 / 加时”输入激活码。激活后 AI 学生会先向你提问。";
+        els.lockHint.textContent = "请先输入激活码激活。";
         els.lockHint.className = "lock-hint";
       } else if (closing) {
-        els.lockHint.textContent = "时长已到：当前对话只能收尾结束，请点击右上角“结束本次对话”。";
+        els.lockHint.textContent = "时长已到：当前对话只能收尾结束。";
         els.lockHint.className = "lock-hint danger";
       } else if (!active) {
         els.lockHint.textContent = "当前没有可用时长/次数，请先激活或加时。";
         els.lockHint.className = "lock-hint danger";
       } else if (!hasSession) {
-        els.lockHint.textContent = "请填写知识点并点击“开始新对话”，AI 学生会先向你提问。";
-        els.lockHint.className = "lock-hint";
+        els.lockHint.textContent = "请填写知识点并点击“开始新对话”。";
+        els.lockHint.className = "lock-hint ok";
       } else {
-        els.lockHint.textContent = "已就绪：用大白话讲解，Ctrl+Enter 发送。AI 会追问、犯错、要例子。";
+        els.lockHint.textContent = "已就绪：用大白话讲解，Ctrl+Enter 发送。";
         els.lockHint.className = "lock-hint ok";
       }
     }
+    // 设置页三步引导
+    const kp = s && s.knowledgePoint ? s.knowledgePoint.trim() : "";
+    if (els.setupStep1) els.setupStep1.className = "step " + (state.backendToken ? "done" : "active");
+    if (els.setupStep2) {
+      if (state.backendToken && kp) els.setupStep2.className = "step done";
+      else if (state.backendToken) els.setupStep2.className = "step active";
+      else els.setupStep2.className = "step";
+    }
+    if (els.setupStep3) {
+      if (s && s.messages && s.messages.length) els.setupStep3.className = "step done";
+      else if (active && kp) els.setupStep3.className = "step active";
+      else els.setupStep3.className = "step";
+    }
+    if (els.setupHint) {
+      if (!state.backendToken) {
+        els.setupHint.textContent = "第 1 步：请先输入激活码。激活后，下面的知识点输入框会自动解锁。";
+      } else if (!backendActive()) {
+        els.setupHint.textContent = "当前没有可用时长/次数，请在下面继续激活或加时。";
+      } else if (!kp) {
+        els.setupHint.textContent = "第 2 步：填写你想讲清楚的知识点。";
+      } else {
+        els.setupHint.textContent = "第 3 步：点击“开始新对话”，AI 学生会先向你提问。";
+      }
+    }
   }
+
   function currentSession() {
     if (!state.currentSessionId) return null;
     return state.sessions[state.currentSessionId] || null;
@@ -541,12 +570,14 @@
   /* ---------------- 事件绑定 ---------------- */
   function bind() {
     if (els.knowledgePoint) {
+      els.knowledgePoint.addEventListener("input", updateControls);
       els.knowledgePoint.addEventListener("change", () => {
         const s = currentSession();
-        if (s) { s.knowledgePoint = els.knowledgePoint.value.trim(); touchSession(s); renderSessions(); }
+        if (s) { s.knowledgePoint = els.knowledgePoint.value.trim(); touchSession(s); renderSessions(); updateControls(); }
       });
     }
     if (els.learningGoal) {
+      els.learningGoal.addEventListener("input", updateControls);
       els.learningGoal.addEventListener("change", () => {
         const s = currentSession();
         if (s) { s.learningGoal = els.learningGoal.value.trim(); touchSession(s); }

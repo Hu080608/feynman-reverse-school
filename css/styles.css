@@ -286,3 +286,60 @@ body:not(.chat-mode) .btn-row .btn{white-space:nowrap}
   .chat-page .chat-head{flex-direction:column}
   .chat-page .chat-head .btn{width:100%}
 }
+
+/* ========== 设置页 v2：三步引导，低认知负担 ========== */
+.settings-page{
+  display:block!important;
+  grid-template-columns:none!important;
+  max-width:860px!important;
+  margin:0 auto;
+  padding:18px 16px 56px!important;
+}
+.settings-page > .card,
+.settings-page > .settings-hero,
+.settings-page > .advanced{
+  margin-bottom:14px;
+}
+.settings-hero{
+  background:linear-gradient(180deg,rgba(16,26,48,.96),rgba(11,18,36,.96));
+  border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;
+  box-shadow:var(--shadow);
+}
+.settings-hero h2{font-size:20px;margin-bottom:12px;color:#eef4ff}
+.stepper{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.step{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(8,13,28,.7);color:var(--muted);font-size:13px;
+}
+.step b{
+  width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  background:#1b2747;color:#b9c8f2;font-size:12px;
+}
+.step.active{border-color:rgba(109,140,255,.65);background:rgba(109,140,255,.14);color:#e8efff}
+.step.active b{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06101f}
+.step.done{border-color:rgba(34,197,94,.5);background:rgba(5,46,22,.55);color:#b7f7c9}
+.step.done b{background:var(--ok);color:#04140a}
+.setup-hint{margin-top:12px;color:#c9d7ff;font-size:13px;line-height:1.6}
+.card-desc{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:10px}
+.advanced{padding:0;overflow:hidden}
+.advanced > summary{
+  cursor:pointer;list-style:none;padding:15px 18px;font-weight:700;color:#dbe7ff;
+  background:linear-gradient(180deg,rgba(16,26,48,.96),rgba(11,18,36,.96));
+}
+.advanced > summary::-webkit-details-marker{display:none}
+.advanced > summary::after{content:" ＋";float:right;color:var(--brand2);font-weight:800}
+.advanced[open] > summary::after{content:" －"}
+.advanced-body{padding:0 18px 18px;background:linear-gradient(180deg,rgba(11,18,36,.96),rgba(11,18,36,.96))}
+.advanced-body .btn-row{margin-top:10px}
+.page-settings .card h2{font-size:17px}
+.page-settings .step-badge{margin-bottom:10px}
+.page-settings textarea:disabled,
+.page-settings input:disabled{opacity:.55;cursor:not-allowed}
+.page-settings .btn:disabled{opacity:.45}
+@media (max-width:640px){
+  .settings-page{padding:12px 10px 44px!important}
+  .settings-hero{padding:15px}
+  .step{width:100%;justify-content:flex-start}
+  .advanced > summary{padding:14px}
+  .advanced-body{padding:0 14px 16px}
+}
