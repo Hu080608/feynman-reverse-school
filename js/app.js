@@ -437,15 +437,10 @@
     if (closing) {
       els.timePill.textContent = "已到时限 · 请结束本次对话";
       els.timePill.className = "pill warn";
-    } else if (timeMs > 0 && uses > 0) {
-      els.timePill.textContent = "剩余：" + formatDuration(timeMs) + " / " + uses + " 次";
-      els.timePill.className = "pill ok";
-    } else if (timeMs > 0) {
-      els.timePill.textContent = (st && st.paused ? "已暂停：" : "剩余：") + formatDuration(timeMs);
-      els.timePill.className = "pill " + (st && st.paused ? "warn" : "ok");
-    } else if (uses > 0) {
-      els.timePill.textContent = "剩余：" + uses + " 次";
-      els.timePill.className = "pill ok";
+    } else if (timeMs > 0 || uses > 0) {
+      const prefix = (st && st.paused && timeMs > 0) ? "已暂停：" : "剩余：";
+      els.timePill.textContent = prefix + formatDuration(timeMs) + " / " + uses + " 次";
+      els.timePill.className = "pill " + (st && st.paused && timeMs > 0 ? "warn" : "ok");
     } else {
       els.timePill.textContent = "剩余：0";
       els.timePill.className = "pill bad";
