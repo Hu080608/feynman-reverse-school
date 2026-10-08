@@ -197,20 +197,22 @@ async function addRecord(env, prefix, data) {
   const key = prefix + Date.now() + ":" + crypto.randomUUID();
   await kvPutJson(env, key, data, { expirationTtl: 180 * 86400 });
 }
-async function listRecords(env, prefix, limit) {
-  const max = Math.max(1, Math.min(Number(limit || 500), 1000));
+async function listRecords(env, prefix, limit, offset) {
+  const max = Math.max(1, Math.min(Number(limit || 200), 500));
+  const skip = Math.max(0, Number(offset || 0));
+  const target = Math.min(1000, max + skip);
   const out = [];
   let cursor = null;
   do {
-    const res = await env.LICENSE_KV.list({ prefix: prefix, limit: Math.min(1000, max - out.length), cursor: cursor || undefined });
+    const res = await env.LICENSE_KV.list({ prefix: prefix, limit: Math.min(1000, target - out.length), cursor: cursor || undefined });
     for (const k of res.keys || []) {
       const v = await kvGetJson(env, k.name);
       if (v) out.push(v);
     }
     cursor = res.cursor || null;
-  } while (cursor && out.length < max);
+  } while (cursor && out.length < target);
   out.sort((a, b) => Number(b.createdAt || b.redeemedAt || b.usedAt || 0) - Number(a.createdAt || a.redeemedAt || a.usedAt || 0));
-  return out;
+  return out.slice(skip, skip + max);
 }
 function usageCost(usage, env) {
   const inputPrice = Number(env.INPUT_PRICE_PER_M || 1);
@@ -327,20 +329,26 @@ async function handleAdminStats(request, env) {
 async function handleAdminRedemptions(request, env) {
   if (!isAdmin(request, env)) return json({ ok: false, error: "ADMIN_DENIED" }, 401, env);
   const url = new URL(request.url);
-  const limit = Number(url.searchParams.get("limit") || 200);
-  return json({ ok: true, items: await listRecords(env, "redemption:", limit) }, 200, env);
+  const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit") || 100), 500));
+  const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
+  const items = await listRecords(env, "redemption:", limit, offset);
+  return json({ ok: true, items: items, nextOffset: offset + items.length, hasMore: items.length === limit }, 200, env);
 }
 async function handleAdminUsage(request, env) {
   if (!isAdmin(request, env)) return json({ ok: false, error: "ADMIN_DENIED" }, 401, env);
   const url = new URL(request.url);
-  const limit = Number(url.searchParams.get("limit") || 200);
-  return json({ ok: true, items: await listRecords(env, "usage:", limit) }, 200, env);
+  const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit") || 100), 500));
+  const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
+  const items = await listRecords(env, "usage:", limit, offset);
+  return json({ ok: true, items: items, nextOffset: offset + items.length, hasMore: items.length === limit }, 200, env);
 }
 async function handleAdminLogs(request, env) {
   if (!isAdmin(request, env)) return json({ ok: false, error: "ADMIN_DENIED" }, 401, env);
   const url = new URL(request.url);
-  const limit = Number(url.searchParams.get("limit") || 200);
-  return json({ ok: true, items: await listRecords(env, "log:", limit) }, 200, env);
+  const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit") || 100), 500));
+  const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
+  const items = await listRecords(env, "log:", limit, offset);
+  return json({ ok: true, items: items, nextOffset: offset + items.length, hasMore: items.length === limit }, 200, env);
 }
 
 async function handleRedeem(request, env) {

@@ -4,6 +4,9 @@
   const $ = id => document.getElementById(id);
   let token = localStorage.getItem("feynman_admin_token") || "";
   let cache = { redemptions: [], usage: [], logs: [] };
+  const PAGE = 100;
+  let offsets = { redemptions: 0, usage: 0, logs: 0 };
+  let hasMore = { redemptions: false, usage: false, logs: false };
 
   function setStatus(text, kind) {
     const el = $("adminStatus");
@@ -62,11 +65,12 @@
   async function refresh() {
     if (!token) { msg("请先输入管理员口令"); return; }
     try {
+      offsets = { redemptions: 0, usage: 0, logs: 0 };
       const [stats, reds, usage, logs] = await Promise.all([
         api("/api/admin/stats"),
-        api("/api/admin/redemptions?limit=200"),
-        api("/api/admin/usage?limit=200"),
-        api("/api/admin/logs?limit=200")
+        api("/api/admin/redemptions?limit=" + PAGE + "&offset=0"),
+        api("/api/admin/usage?limit=" + PAGE + "&offset=0"),
+        api("/api/admin/logs?limit=" + PAGE + "&offset=0")
       ]);
       const s = stats.stats || {};
       $("statRedemptions").textContent = s.totalRedemptions || 0;
@@ -77,13 +81,39 @@
       cache.redemptions = reds.items || [];
       cache.usage = usage.items || [];
       cache.logs = logs.items || [];
+      hasMore.redemptions = !!reds.hasMore;
+      hasMore.usage = !!usage.hasMore;
+      hasMore.logs = !!logs.hasMore;
       renderTables();
+      updateLoadMoreButtons();
       setStatus("已登录", "ok");
       msg("数据已刷新", true);
     } catch (e) {
       setStatus("登录失效", "bad");
       msg(e.message || "刷新失败", false);
     }
+  }
+
+  async function loadMore(kind, path, cacheKey) {
+    if (!token || !hasMore[kind]) return;
+    try {
+      const data = await api(path + "?limit=" + PAGE + "&offset=" + offsets[kind]);
+      cache[cacheKey] = (cache[cacheKey] || []).concat(data.items || []);
+      offsets[kind] = data.nextOffset || (offsets[kind] + (data.items || []).length);
+      hasMore[kind] = !!data.hasMore;
+      renderTables();
+      updateLoadMoreButtons();
+      msg("已加载更多", true);
+    } catch (e) {
+      msg(e.message || "加载失败", false);
+    }
+  }
+
+  function updateLoadMoreButtons() {
+    [["loadMoreRedemptions", "redemptions"], ["loadMoreUsage", "usage"], ["loadMoreLogs", "logs"]].forEach(([id, key]) => {
+      const btn = $(id);
+      if (btn) btn.classList.toggle("hidden", !hasMore[key]);
+    });
   }
 
   function renderTables() {
@@ -120,6 +150,9 @@
     $("exportRedemptions").addEventListener("click", () => exportCsv("redemptions", cache.redemptions, ["createdAt", "pname", "pid", "type", "durationSeconds", "uses", "clientId"]));
     $("exportUsage").addEventListener("click", () => exportCsv("usage", cache.usage, ["createdAt", "source", "knowledgePoint", "promptTokens", "completionTokens", "totalTokens", "cost"]));
     $("exportLogs").addEventListener("click", () => exportCsv("logs", cache.logs, ["createdAt", "level", "event", "message"]));
+    $("loadMoreRedemptions").addEventListener("click", () => loadMore("redemptions", "/api/admin/redemptions", "redemptions"));
+    $("loadMoreUsage").addEventListener("click", () => loadMore("usage", "/api/admin/usage", "usage"));
+    $("loadMoreLogs").addEventListener("click", () => loadMore("logs", "/api/admin/logs", "logs"));
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind); else bind();
 })();

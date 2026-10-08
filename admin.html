@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>费曼反向学校｜运营后台</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/styles.css?v=26" />
+  <link rel="stylesheet" href="css/responsive.css?v=26" />
 </head>
 <body class="admin-body">
   <header class="topbar">
@@ -43,18 +44,21 @@
       <h2>兑换记录</h2>
       <div class="table-wrap"><table id="redemptionTable"><thead><tr><th>时间</th><th>商品</th><th>类型</th><th>内容</th><th>客户标识</th></tr></thead><tbody></tbody></table></div>
       <button id="exportRedemptions" class="btn small">导出 CSV</button>
+      <button id="loadMoreRedemptions" class="btn small hidden">加载更多</button>
     </section>
 
     <section class="card">
       <h2>Token 用量与花费</h2>
       <div class="table-wrap"><table id="usageTable"><thead><tr><th>时间</th><th>类型</th><th>知识点</th><th>输入 Token</th><th>输出 Token</th><th>总 Token</th><th>预估费用</th></tr></thead><tbody></tbody></table></div>
       <button id="exportUsage" class="btn small">导出 CSV</button>
+      <button id="loadMoreUsage" class="btn small hidden">加载更多</button>
     </section>
 
     <section class="card">
       <h2>系统日志</h2>
       <div class="table-wrap"><table id="logTable"><thead><tr><th>时间</th><th>级别</th><th>事件</th><th>说明</th></tr></thead><tbody></tbody></table></div>
       <button id="exportLogs" class="btn small">导出 CSV</button>
+      <button id="loadMoreLogs" class="btn small hidden">加载更多</button>
     </section>
   </main>
 
