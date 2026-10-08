@@ -38,14 +38,14 @@
   async function status(token) {
     return postJson("/api/status", { token: token });
   }
-  async function start(token, priority) {
-    return postJson("/api/start", { token: token, priority: priority || "time" });
+  async function start(token, priority, conversationId) {
+    return postJson("/api/start", { token: token, priority: priority || "time", conversationId: conversationId || "" });
   }
   async function pause(token) {
     return postJson("/api/pause", { token: token });
   }
-  async function end(token) {
-    return postJson("/api/end", { token: token });
+  async function end(token, conversationId) {
+    return postJson("/api/end", { token: token, conversationId: conversationId || "" });
   }
 
   async function cleanText(token, text) {

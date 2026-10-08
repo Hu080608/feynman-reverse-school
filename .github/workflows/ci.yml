@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  syntax-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Node syntax check
+        run: |
+          node --check js/app.js
+          node --check js/backend.js
+          node --check js/admin.js
+          node --check js/config.js
+          node --check tools/generate-codes.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python syntax check
+        run: |
+          python -m py_compile tools/make_brand_assets.py
+          python -m py_compile tools/make_pitch_ppt.py
+          python -m py_compile tools/bump_version.py
+          python -m py_compile tools/generate_codes_gui.py

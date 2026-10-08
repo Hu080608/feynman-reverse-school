@@ -30,7 +30,10 @@
     return new Date(Number(ts)).toLocaleString();
   }
   function money(v) { return "¥" + Number(v || 0).toFixed(4); }
-  function tds(cells) { return "<tr>" + cells.map(c => "<td>" + String(c == null ? "" : c) + "</td>").join("") + "</tr>"; }
+  function esc(v) {
+    return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function tds(cells) { return "<tr>" + cells.map(c => "<td>" + esc(c) + "</td>").join("") + "</tr>"; }
 
   async function login() {
     const input = $("adminToken").value.trim();

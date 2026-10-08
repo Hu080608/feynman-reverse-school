@@ -104,7 +104,8 @@ function newSession(clientId) {
     timeRemainingMs: 0,
     remainingUses: 0,
     timeActiveAt: null,
-    priority: "time"
+    priority: "time",
+    endedConversations: []
   };
 }
 
@@ -128,6 +129,7 @@ function migrateSession(session, now) {
   session.inConversation = false;
   session.closing = false;
   session.priority = session.priority || "time";
+  session.endedConversations = Array.isArray(session.endedConversations) ? session.endedConversations : [];
   delete session.grants;
   session.updatedAt = now;
   return true;
@@ -182,6 +184,7 @@ function statusPayload(session, now) {
     timeActive: !!session.timeActiveAt,
     paused: timeRemainingMs > 0 && !session.timeActiveAt,
     priority: session.priority || "time",
+    endedConversations: Array.isArray(session.endedConversations) ? session.endedConversations : [],
     // 兼容旧前端字段
     current: null,
     queue: []
@@ -237,6 +240,20 @@ async function addUsageRecord(env, usage, source, model, knowledgePoint, clientI
   });
 }
 
+function sessionAvailable(session) {
+  return Number(session.timeRemainingMs || 0) > 0 || Number(session.remainingUses || 0) > 0;
+}
+
+async function checkRateLimit(env, bucket, id, limit, windowSec) {
+  const now = Date.now();
+  const key = "rate:" + bucket + ":" + id + ":" + Math.floor(now / (windowSec * 1000));
+  const rateRecord = await kvGetJson(env, key);
+  const current = Number(rateRecord && rateRecord.count ? rateRecord.count : 0);
+  if (current >= limit) return false;
+  await kvPutJson(env, key, { count: current + 1, at: now }, { expirationTtl: windowSec + 60 });
+  return true;
+}
+
 async function addSystemLog(env, level, event, message, meta) {
   await addRecord(env, "log:", {
     createdAt: Date.now(), level: level || "info", event: event || "system",
@@ -263,9 +280,15 @@ function parseUsageFromSSE(text) {
 async function handleAdminLogin(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { body = {}; }
-  if (String(body.token || "") !== String(env.ADMIN_TOKEN || "")) {
+  const ip = request.headers.get("cf-connecting-ip") || "unknown";
+  if (!(await checkRateLimit(env, "admin_login", ip, 10, 300))) {
+    return json({ ok: false, error: "RATE_LIMITED", message: "尝试过于频繁，请稍后再试。" }, 429, env);
+  }
+  if (!env.ADMIN_TOKEN || String(body.token || "") !== String(env.ADMIN_TOKEN || "")) {
+    await addSystemLog(env, "warn", "admin_login_fail", "管理员登录失败", { ip: ip });
     return json({ ok: false, error: "ADMIN_DENIED", message: "管理员口令错误。" }, 401, env);
   }
+  await addSystemLog(env, "info", "admin_login_ok", "管理员登录成功", { ip: ip });
   return json({ ok: true }, 200, env);
 }
 async function handleAdminStats(request, env) {
@@ -337,6 +360,7 @@ async function handleRedeem(request, env) {
   // 若要 100% 原子核销，后续可升级为 D1 唯一索引或 Durable Object。
   await kvPutJson(env, usedKey, { jti: payload.jti, usedAt: now, clientId }, { expirationTtl: 60 * 86400 });
 
+  try {
   let session = null;
   let sessionKey = null;
   if (clientId) {
@@ -388,6 +412,10 @@ async function handleRedeem(request, env) {
     },
     status: statusPayload(session, now)
   }, 200, env);
+  } catch (e) {
+    await env.LICENSE_KV.delete(usedKey);
+    return json({ ok: false, error: "REDEEM_FAILED", message: "激活写入失败，请重试。" }, 500, env);
+  }
 }
 
 async function handleStatus(request, env) {
@@ -443,6 +471,19 @@ async function handleChat(request, env) {
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新输入激活码。" }, 404, env);
 
   const now = Date.now();
+  session.endedConversations = Array.isArray(session.endedConversations) ? session.endedConversations : [];
+  const conversationId = String(body.conversationId || "").slice(0, 80);
+  if (conversationId && session.endedConversations.includes(conversationId)) {
+    return json({ ok: false, error: "CONVERSATION_ENDED", message: "该对话已彻底结束，不能继续。" }, 403, env);
+  }
+  const incomingCheck = Array.isArray(body.messages) ? body.messages : [];
+  const totalCharsCheck = incomingCheck.reduce((a, m) => a + String((m && m.content) || "").length, 0);
+  if (incomingCheck.length > 80 || totalCharsCheck > 50000) {
+    return json({ ok: false, error: "TOO_LARGE", message: "对话内容太长，请精简后再发送。" }, 413, env);
+  }
+  if (!(await checkRateLimit(env, "chat", token, 30, 60))) {
+    return json({ ok: false, error: "RATE_LIMITED", message: "请求太频繁，请稍后再试。" }, 429, env);
+  }
   session.priority = String(body.priority || session.priority || "time") === "count" ? "count" : "time";
   refreshSession(session, now, false);
   if (session.closing) {
@@ -532,7 +573,8 @@ async function handleChat(request, env) {
       await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
     }
     const text = await upstream.text().catch(() => "");
-    return json({ ok: false, error: "UPSTREAM_ERROR", message: "DeepSeek 接口错误：" + text.slice(0, 400) }, 502, env);
+    await addSystemLog(env, "error", "chat_upstream", "DeepSeek 对话接口错误", { error: text.slice(0, 1000) });
+    return json({ ok: false, error: "UPSTREAM_ERROR", message: "AI 服务暂时不可用，请稍后重试。" }, 502, env);
   }
 
   const usageText = { value: "" };
@@ -545,23 +587,10 @@ async function handleChat(request, env) {
     async flush() {
       const usage = parseUsageFromSSE(usageText.value);
       if (!usage) return;
-      const inputPrice = Number(env.INPUT_PRICE_PER_M || 1);
-      const outputPrice = Number(env.OUTPUT_PRICE_PER_M || 2);
-      const promptTokens = Number(usage.prompt_tokens || 0);
-      const completionTokens = Number(usage.completion_tokens || 0);
-      const totalTokens = Number(usage.total_tokens || (promptTokens + completionTokens));
-      const cost = (promptTokens / 1000000) * inputPrice + (completionTokens / 1000000) * outputPrice;
-      await addRecord(env, "usage:", {
-        createdAt: Date.now(),
-        model: env.DEEPSEEK_MODEL || "deepseek-chat",
-        knowledgePoint: knowledgePoint,
-        promptTokens, completionTokens, totalTokens,
-        cost: Number(cost.toFixed(6)),
-        clientId: session.clientId || "",
-        sessionTokenTail: token.slice(-8)
-      });
+      const c = usageCost(usage, env);
+      await addUsageRecord(env, usage, "chat", env.DEEPSEEK_MODEL || "deepseek-chat", knowledgePoint, session.clientId || "", token);
       await addSystemLog(env, "info", "chat_usage", "对话完成并记录用量", {
-        totalTokens, cost: Number(cost.toFixed(6))
+        totalTokens: c.totalTokens, cost: c.cost
       });
     }
   });
@@ -585,41 +614,54 @@ async function handleVision(request, env) {
   if (!token) return json({ ok: false, error: "TOKEN_REQUIRED" }, 400, env);
   const session = await kvGetJson(env, "session:" + token);
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新激活。" }, 404, env);
+  if (!sessionAvailable(session)) return json({ ok: false, error: "NO_ACTIVE_LICENSE", message: "当前没有可用时长/次数，不能使用识图。" }, 402, env);
+  if (!(await checkRateLimit(env, "vision", token, 10, 60))) return json({ ok: false, error: "RATE_LIMITED", message: "识图请求太频繁，请稍后再试。" }, 429, env);
   if (!image) return json({ ok: false, error: "IMAGE_REQUIRED", message: "没有收到图片。" }, 400, env);
   if (!image.startsWith("data:image/")) image = "data:image/jpeg;base64," + image;
   if (image.length > 8 * 1024 * 1024) return json({ ok: false, error: "IMAGE_TOO_LARGE", message: "图片太大，请压缩后再试。" }, 413, env);
 
-  const model = env.DEEPSEEK_VISION_MODEL || "deepseek-v4-flash-vision-exp";
-  const upstream = await fetch(joinUrl(env.DEEPSEEK_BASE_URL || "https://api.deepseek.com", "chat/completions"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + (env.DEEPSEEK_API_KEY || "")
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        { role: "system", content: "你是 OCR 助手。请识别图片中的文字，把数学公式转为 LaTeX，保留排版结构；只输出识别结果，不要解释。" },
-        { role: "user", content: [
-          { type: "text", text: prompt },
-          { type: "image_url", image_url: { url: image } }
-        ] }
-      ],
-      temperature: 0.1,
-      max_tokens: 2000,
-      stream: false
-    })
-  });
-  if (!upstream.ok) {
-    const errText = await upstream.text().catch(() => "");
-    return json({ ok: false, error: "UPSTREAM_ERROR", message: "DeepSeek 识图失败：" + errText.slice(0, 300) }, 502, env);
+  const primaryModel = env.DEEPSEEK_VISION_MODEL || "deepseek-v4-flash-vision-exp";
+  const fallbackModel = env.DEEPSEEK_VISION_MODEL_FALLBACK || "deepseek-flash";
+  const models = [primaryModel];
+  if (fallbackModel && fallbackModel !== primaryModel) models.push(fallbackModel);
+  let upstream = null;
+  let usedModel = primaryModel;
+  let lastError = "";
+  for (const m of models) {
+    usedModel = m;
+    upstream = await fetch(joinUrl(env.DEEPSEEK_BASE_URL || "https://api.deepseek.com", "chat/completions"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (env.DEEPSEEK_API_KEY || "")
+      },
+      body: JSON.stringify({
+        model: m,
+        messages: [
+          { role: "system", content: "你是 OCR 助手。请识别图片中的文字，把数学公式转为 LaTeX，保留排版结构；只输出识别结果，不要解释。" },
+          { role: "user", content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: image } }
+          ] }
+        ],
+        temperature: 0.1,
+        max_tokens: 2000,
+        stream: false
+      })
+    });
+    if (upstream.ok) break;
+    lastError = await upstream.text().catch(() => "");
+  }
+  if (!upstream || !upstream.ok) {
+    await addSystemLog(env, "error", "vision_upstream", "DeepSeek 识图接口错误", { model: usedModel, error: lastError.slice(0, 1000) });
+    return json({ ok: false, error: "UPSTREAM_ERROR", message: "识图服务暂时不可用，请稍后重试。" }, 502, env);
   }
   const data = await upstream.json().catch(() => null);
   const text = data && data.choices && data.choices[0] && data.choices[0].message
     ? String(data.choices[0].message.content || "") : "";
   if (!text) return json({ ok: false, error: "EMPTY_RESULT", message: "DeepSeek 没有返回识别结果。" }, 502, env);
-  await addUsageRecord(env, data && data.usage, "vision", model, "", session.clientId || "", token);
-  await addSystemLog(env, "info", "vision_ocr", "DeepSeek 识图完成", { model: model });
+  await addUsageRecord(env, data && data.usage, "vision", usedModel, "", session.clientId || "", token);
+  await addSystemLog(env, "info", "vision_ocr", "DeepSeek 识图完成", { model: usedModel });
   return json({ ok: true, text: text, model: model }, 200, env);
 }
 
@@ -632,6 +674,8 @@ async function handleCleanText(request, env) {
   if (!text.trim()) return json({ ok: false, error: "EMPTY_TEXT", message: "没有可整理的内容。" }, 400, env);
   const session = await kvGetJson(env, "session:" + token);
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新激活。" }, 404, env);
+  if (!sessionAvailable(session)) return json({ ok: false, error: "NO_ACTIVE_LICENSE", message: "当前没有可用时长/次数，不能使用 AI 整理。" }, 402, env);
+  if (!(await checkRateLimit(env, "clean", token, 20, 60))) return json({ ok: false, error: "RATE_LIMITED", message: "整理请求太频繁，请稍后再试。" }, 429, env);
   const upstream = await fetch(joinUrl(env.DEEPSEEK_BASE_URL || "https://api.deepseek.com", "chat/completions"), {
     method: "POST",
     headers: {
@@ -651,7 +695,8 @@ async function handleCleanText(request, env) {
   });
   if (!upstream.ok) {
     const errText = await upstream.text().catch(() => "");
-    return json({ ok: false, error: "UPSTREAM_ERROR", message: "AI 整理失败：" + errText.slice(0, 300) }, 502, env);
+    await addSystemLog(env, "error", "clean_upstream", "AI 整理接口错误", { error: errText.slice(0, 1000) });
+    return json({ ok: false, error: "UPSTREAM_ERROR", message: "整理服务暂时不可用，请稍后重试。" }, 502, env);
   }
   const data = await upstream.json().catch(() => null);
   const cleaned = data && data.choices && data.choices[0] && data.choices[0].message
@@ -705,6 +750,11 @@ async function handleStart(request, env) {
   const session = await kvGetJson(env, "session:" + token);
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新输入激活码。" }, 404, env);
   const now = Date.now();
+  session.endedConversations = Array.isArray(session.endedConversations) ? session.endedConversations : [];
+  const conversationId = String(body.conversationId || "").slice(0, 80);
+  if (conversationId && session.endedConversations.includes(conversationId)) {
+    return json({ ok: false, error: "CONVERSATION_ENDED", message: "该对话已彻底结束，不能继续。" }, 403, env);
+  }
   session.priority = String(body.priority || session.priority || "time") === "count" ? "count" : "time";
   session.inConversation = true;
   session.updatedAt = now;
@@ -722,6 +772,11 @@ async function handleEnd(request, env) {
   const session = await kvGetJson(env, "session:" + token);
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND" }, 404, env);
   const now = Date.now();
+  session.endedConversations = Array.isArray(session.endedConversations) ? session.endedConversations : [];
+  const conversationId = String(body.conversationId || "").slice(0, 80);
+  if (conversationId && !session.endedConversations.includes(conversationId)) {
+    session.endedConversations.push(conversationId);
+  }
   refreshSession(session, now, false);
   session.timeActiveAt = null;
   session.inConversation = false;

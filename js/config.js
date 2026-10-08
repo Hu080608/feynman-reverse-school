@@ -11,35 +11,6 @@ window.APP_CONFIG = {
     url: "https://api.feynman-hsj.top"
   },
 
-  // 以下 API 配置仅用于旧版直连模式，当前前端默认走后端，不再使用前端 API Key。
-  API: {
-    baseUrl: "",
-    model: "",
-    apiKey: "",
-    temperature: 0.85,
-    maxTokens: 900,
-    timeoutMs: 90000
-  },
-
-  AUTH: {
-    // ecdsa：推荐。前端只放公钥，用私钥离线签发，用户无法从网页伪造。
-    // hmac：仅本地演示，密钥会进浏览器，用户可自行伪造，绝不可用于正式售卖。
-    mode: "ecdsa",
-    // 把 tools/keygen.mjs 生成的 publicJwk 粘贴到这里。
-    publicKeyJwk: {
-        "crv": "P-256",
-        "kty": "EC",
-        "x": "wIBH_i1kFv-oXd7hEbkwstVkcC2RnEFlu347kV2oKXY",
-        "y": "DALV-GxcgeUqpln1b_3EMTau3LFwLtt3x7oM0_zmWj8"
-    },
-    // 仅当 mode === "hmac" 时使用；务必不要用于正式环境。
-    hmacSecret: "",
-    // 本地时钟回拨容差：超过这个值判定为异常并锁定新对话。
-    clockRollbackToleranceMs: 120000,
-    // 是否在检测到明显时钟回拨时锁定新使用（已有的“完成本次对话”宽限仍可用）。
-    lockOnClockRollback: true
-  },
-
   APP: {
     storageKey: "feynman_reverse_school_v1",
     masteryPassScore: 80,

@@ -2,11 +2,12 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://api.feynman-hsj.top http://127.0.0.1:8787 http://localhost:8787; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>费曼反向学校｜设置与激活</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="https://cdn.npmmirror.com/packages/katex/0.16.11/files/dist/katex.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=24" />
+  <link rel="stylesheet" href="vendor/katex/katex.min.css" />
+  <link rel="stylesheet" href="css/styles.css?v=25" />
 </head>
 <body class="page-settings" data-page="settings">
   <header class="topbar">
@@ -79,7 +80,7 @@
     <section class="card">
       <div class="step-badge">记录</div>
       <h2>我的对话记录</h2>
-      <p class="card-desc">选择一条“未结束”的会话，点击“继续上次对话”即可继续；已结束的会话只能只读打开。</p>
+      <p class="card-desc">对话记录仅保存在本设备浏览器中；选择一条“未结束”的会话，点击“继续上次对话”即可继续；已结束的会话只能只读打开。</p>
       <select id="sessionSelect"></select>
       <div class="btn-row">
         <button id="continueBtn" class="btn">继续上次对话</button>
@@ -105,13 +106,12 @@
 
   <div id="toast" class="toast hidden"></div>
 
-  <script src="https://cdn.npmmirror.com/packages/marked/12.0.2/files/marked.min.js" defer></script>
-  <script src="https://cdn.npmmirror.com/packages/dompurify/3.2.4/files/dist/purify.min.js" defer></script>
-  <script src="https://cdn.npmmirror.com/packages/katex/0.16.11/files/dist/katex.min.js" defer></script>
-  <script src="https://cdn.npmmirror.com/packages/katex/0.16.11/files/dist/contrib/auto-render.min.js" defer></script>
+  <script src="vendor/marked/marked.min.js" defer></script>
+  <script src="vendor/dompurify/purify.min.js" defer></script>
+  <script src="vendor/katex/katex.min.js" defer></script>
+  <script src="vendor/katex/contrib/auto-render.min.js" defer></script>
   <script src="js/config.js" defer></script>
-  <script src="js/auth.js" defer></script>
   <script src="js/backend.js" defer></script>
-  <script src="js/app.js?v=24" defer></script>
+  <script src="js/app.js?v=25" defer></script>
 </body>
 </html>

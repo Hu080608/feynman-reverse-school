@@ -7,15 +7,6 @@ tools/generate-codes.mjs
 tools/generate-codes.bat
 ```
 
-旧版 ECDSA 工具：
-
-```text
-tools/keygen.mjs
-tools/generate-license.mjs
-```
-
-仅保留作参考，当前 Worker 不使用。
-
 ## Windows 一键生成
 
 双击：

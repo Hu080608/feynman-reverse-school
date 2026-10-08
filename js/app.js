@@ -1,7 +1,6 @@
 /* 费曼反向学校：页面逻辑、会话持久化、AI 学生交互、套餐授权与 OCR。 */
 (function () {
   const cfg = window.APP_CONFIG;
-  const A = window.FeynmanAuth;
   const API = window.FeynmanAPI;
   const B = window.FeynmanBackend;
   const PAGE = (document.body && document.body.getAttribute("data-page")) || "settings";
@@ -29,7 +28,7 @@
 
   /* ---------------- 持久化与会话 ---------------- */
   function defaultState() {
-    return { version: 2, currentSessionId: null, sessions: {}, license: A.emptyLicense(), usedCodeIds: [], backendToken: "", backendStatus: null, backendStatusAt: 0, consumePriority: "time" };
+    return { version: 2, currentSessionId: null, sessions: {}, backendToken: "", backendStatus: null, backendStatusAt: 0, consumePriority: "time" };
   }
   function loadState() {
     try {
@@ -38,8 +37,6 @@
       const obj = JSON.parse(raw);
       return Object.assign(defaultState(), obj, {
         sessions: obj.sessions && typeof obj.sessions === "object" ? obj.sessions : {},
-        license: A.normalizeLicense(obj.license),
-        usedCodeIds: Array.isArray(obj.usedCodeIds) ? obj.usedCodeIds : [],
         backendToken: typeof obj.backendToken === "string" ? obj.backendToken : "",
         backendStatus: obj.backendStatus || null,
         backendStatusAt: Number(obj.backendStatusAt || 0),
@@ -117,7 +114,8 @@
   async function startChatSession() {
     if (!backendReady() || !state.backendToken) return false;
     try {
-      const res = await B.start(state.backendToken, state.consumePriority || "time");
+      const cs = currentSession();
+      const res = await B.start(state.backendToken, state.consumePriority || "time", cs ? cs.id : "");
       state.backendStatus = res.status || null;
       state.backendStatusAt = Date.now();
       saveState();
@@ -645,7 +643,8 @@
         messages: history,
         start: !!isStart,
         hint: !!hint,
-        priority: state.consumePriority || "time"
+        priority: state.consumePriority || "time",
+        conversationId: s.id || ""
       }, (delta, full) => {
         streamMsg.content = full;
         body.innerHTML = renderMarkdown(stripAiMarkers(full));
@@ -897,7 +896,7 @@
         s.endedAt = Date.now();
         if (backendReady() && state.backendToken) {
           try {
-            const res = await B.end(state.backendToken);
+            const res = await B.end(state.backendToken, s.id || "");
             state.backendStatus = res.status || state.backendStatus;
             state.backendStatusAt = Date.now();
           } catch (e) {
