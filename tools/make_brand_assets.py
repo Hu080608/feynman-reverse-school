@@ -217,10 +217,12 @@ def make_poster(path=None):
     qr_img = qr.make_image(fill_color="#0b1020", back_color="white").convert("RGB").resize((180, 180), Image.NEAREST)
     frame = Image.new("RGB", (204, 204), (255, 255, 255))
     frame.paste(qr_img, (12, 12))
-    img.paste(frame, (80, 2320 - 180))
-    draw.text((320, 2160 + 120), "扫码体验", font=font(32), fill=TEXT)
-    draw.multiline_text((320, 2205), "https://hu080608.github.io/\nfeynman-reverse-school/", font=font(20, False), fill=MUTED, spacing=8)
-    draw.text((320, 2285), "教会 AI，才算学会。", font=font(24), fill=CYAN)
+    img.paste(frame, (80, 2440))
+    draw.text((320, 2460), "扫码体验", font=font(32), fill=TEXT)
+    draw.text((320, 2505), "https://hu080608.github.io/", font=font(20, False), fill=MUTED)
+    draw.text((320, 2537), "feynman-reverse-school/", font=font(20, False), fill=MUTED)
+    draw.text((320, 2585), "教会 AI，才算学会。", font=font(24), fill=CYAN)
+    draw.text((80, 2690), "制作者：胡胜杰 · v1.3", font=font(18, False), fill=MUTED)
 
     try:
         img.save(path, "PNG")
