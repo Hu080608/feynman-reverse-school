@@ -203,10 +203,14 @@
     if (els.hintBtn) els.hintBtn.disabled = readonly || !active || sending || closing;
     if (els.retryBtn) els.retryBtn.disabled = readonly || !active || sending;
     if (els.userInput) els.userInput.disabled = readonly || !active || closing;
-    if (els.prioritySelect) {
+    if (els.priorityBox || els.prioritySelect) {
       const totals = poolTotals(state.backendStatus);
-      els.prioritySelect.disabled = !(totals.time > 0 && totals.uses > 0);
-      els.prioritySelect.title = els.prioritySelect.disabled ? "只有同时有剩余时长和次数时才需要选择优先消耗" : "";
+      const showPriority = totals.time > 0 && totals.uses > 0;
+      if (els.priorityBox) els.priorityBox.classList.toggle("hidden", !showPriority);
+      if (els.prioritySelect) {
+        els.prioritySelect.disabled = !showPriority;
+        els.prioritySelect.title = showPriority ? "" : "只有同时有剩余时长和次数时才需要选择优先消耗";
+      }
     }
     if (els.continueBtn) {
       const list = listSessions();
