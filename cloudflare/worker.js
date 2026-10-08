@@ -296,7 +296,7 @@ async function handleFeedbackSubmit(request, env) {
   const image = String(body.image || "");
   const source = ["settings", "chat"].includes(String(body.source || "")) ? String(body.source) : "settings";
   if (!content) return json({ ok: false, error: "CONTENT_REQUIRED", message: "请填写反馈内容。" }, 400, env);
-  if (content.length < 5) return json({ ok: false, error: "CONTENT_TOO_SHORT", message: "反馈内容太短，请再写清楚一点。" }, 400, env);
+  if (content.length < 1) return json({ ok: false, error: "CONTENT_TOO_SHORT", message: "反馈内容不能为空。" }, 400, env);
   if (image && !image.startsWith("data:image/")) return json({ ok: false, error: "INVALID_IMAGE", message: "图片格式不支持。" }, 400, env);
   if (image.length > 3.2 * 1024 * 1024) return json({ ok: false, error: "IMAGE_TOO_LARGE", message: "图片太大，请压缩后再上传。" }, 413, env);
   const token = String(body.token || "");

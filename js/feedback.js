@@ -59,9 +59,7 @@
 
   function bind() {
     const backTop = $("feedbackBackTop");
-    const back = $("feedbackBack");
     if (backTop) backTop.href = returnUrl;
-    if (back) back.href = returnUrl;
 
     const content = $("feedbackContent");
     const count = $("feedbackCount");
@@ -102,7 +100,7 @@
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const text = String(content && content.value || "").trim();
-      if (text.length < 5) { msg.textContent = "反馈内容至少写 5 个字，方便我们理解问题。"; return; }
+      if (!text) { msg.textContent = "请先填写反馈内容。"; return; }
       if (text.length > 1000) { msg.textContent = "反馈内容不能超过 1000 字。"; return; }
       btn.disabled = true;
       msg.textContent = "正在提交...";
