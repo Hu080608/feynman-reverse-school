@@ -410,7 +410,7 @@
   }
   body.page-chat .chat-head-actions{
     display:grid!important;
-    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
     width:100%!important;
     gap:6px!important;
   }
