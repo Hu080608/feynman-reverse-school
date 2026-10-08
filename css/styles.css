@@ -400,18 +400,20 @@ body.readonly-mode .readonly-banner{
 
 /* 反馈状态标签 */
 .status-select{
-  min-width:116px;
-  padding:7px 9px;
+  width:auto!important;
+  max-width:110px;
+  min-width:92px;
+  padding:6px 8px;
   border-radius:10px;
   font-size:12px;
 }
 .status-badge{
   display:inline-block;
-  margin-right:6px;
-  padding:4px 8px;
+  margin-right:4px;
+  padding:3px 7px;
   border:1px solid currentColor;
   border-radius:999px;
-  font-size:11px;
+  font-size:10px;
   font-weight:700;
   vertical-align:middle;
   white-space:nowrap;
@@ -422,4 +424,4 @@ body.readonly-mode .readonly-banner{
 .status-invalid{background:rgba(156,163,175,.16);color:#d1d5db;border-color:rgba(156,163,175,.55)}
 .admin-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
 .admin-toolbar select{width:auto;min-width:140px}
-.feedback-content{max-width:460px;white-space:pre-wrap;word-break:break-word}
+.feedback-content{max-width:360px;white-space:pre-wrap;word-break:break-word}
