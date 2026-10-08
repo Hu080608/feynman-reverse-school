@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://api.feynman-hsj.top http://127.0.0.1:8787 http://localhost:8787; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>意见反馈｜费曼反向学校</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="vendor/katex/katex.min.css" />
+  <link rel="stylesheet" href="css/styles.css?v=29" />
+  <link rel="stylesheet" href="css/responsive.css?v=29" />
+  <link rel="stylesheet" href="css/feedback.css?v=1" />
+</head>
+<body class="page-feedback">
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="assets/logo.svg" alt="费曼反向学校" />
+      <div><h1>费曼反向学校</h1><p>意见反馈</p></div>
+    </div>
+    <a id="feedbackBackTop" class="btn small" href="index.html">返回</a>
+  </header>
+
+  <main class="feedback-page">
+    <section class="card feedback-card">
+      <h2>意见反馈</h2>
+      <p class="hint">遇到问题、想提建议，或者发现体验不好的地方，都可以写在这里。我们会认真查看。</p>
+
+      <form id="feedbackForm">
+        <label for="feedbackContent">反馈内容 <span class="required">*</span></label>
+        <textarea id="feedbackContent" rows="7" maxlength="1000" placeholder="请描述你遇到的问题、建议或希望增加的功能，越具体越好。"></textarea>
+        <p class="tiny"><span id="feedbackCount">0</span> / 1000</p>
+
+        <label for="feedbackContact">联系方式（可选）</label>
+        <input id="feedbackContact" maxlength="120" placeholder="微信 / 邮箱 / 手机号，方便我们回访" />
+
+        <label for="feedbackImage">问题截图（可选，1 张）</label>
+        <input id="feedbackImage" type="file" accept="image/*" />
+        <div id="feedbackPreview" class="feedback-preview hidden">
+          <img id="feedbackPreviewImg" alt="反馈图片预览" />
+          <button type="button" id="clearImageBtn" class="btn small">移除图片</button>
+        </div>
+
+        <p id="feedbackMsg" class="hint"></p>
+        <button id="feedbackSubmitBtn" class="btn primary full" type="submit">提交反馈</button>
+      </form>
+
+      <a id="feedbackBack" class="btn full" href="index.html">返回</a>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="js/config.js" defer></script>
+  <script src="js/backend.js" defer></script>
+  <script src="js/feedback.js" defer></script>
+</body>
+</html>

@@ -3,10 +3,10 @@
   const base = ((cfg.BACKEND && cfg.BACKEND.url) || "").replace(/\/+$/, "");
   const $ = id => document.getElementById(id);
   let token = localStorage.getItem("feynman_admin_token") || "";
-  let cache = { redemptions: [], usage: [], logs: [] };
+  let cache = { redemptions: [], usage: [], logs: [], feedback: [] };
   const PAGE = 100;
-  let offsets = { redemptions: 0, usage: 0, logs: 0 };
-  let hasMore = { redemptions: false, usage: false, logs: false };
+  let offsets = { redemptions: 0, usage: 0, logs: 0, feedback: 0 };
+  let hasMore = { redemptions: false, usage: false, logs: false, feedback: false };
 
   function setStatus(text, kind) {
     const el = $("adminStatus");
@@ -20,6 +20,21 @@
   }
   async function api(path) {
     const res = await fetch(base + path, { headers: { "x-admin-token": token } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data.message || data.error || ("请求失败 " + res.status));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  async function apiPost(path, payload) {
+    const res = await fetch(base + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-token": token },
+      body: JSON.stringify(payload || {})
+    });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const err = new Error(data.message || data.error || ("请求失败 " + res.status));
@@ -65,12 +80,14 @@
   async function refresh() {
     if (!token) { msg("请先输入管理员口令"); return; }
     try {
-      offsets = { redemptions: 0, usage: 0, logs: 0 };
-      const [stats, reds, usage, logs] = await Promise.all([
+      offsets = { redemptions: 0, usage: 0, logs: 0, feedback: 0 };
+      const feedbackQuery = buildFeedbackQuery(0);
+      const [stats, reds, usage, logs, feedback] = await Promise.all([
         api("/api/admin/stats"),
         api("/api/admin/redemptions?limit=" + PAGE + "&offset=0"),
         api("/api/admin/usage?limit=" + PAGE + "&offset=0"),
-        api("/api/admin/logs?limit=" + PAGE + "&offset=0")
+        api("/api/admin/logs?limit=" + PAGE + "&offset=0"),
+        api("/api/admin/feedback?" + feedbackQuery)
       ]);
       const s = stats.stats || {};
       $("statRedemptions").textContent = s.totalRedemptions || 0;
@@ -81,9 +98,11 @@
       cache.redemptions = reds.items || [];
       cache.usage = usage.items || [];
       cache.logs = logs.items || [];
+      cache.feedback = feedback.items || [];
       hasMore.redemptions = !!reds.hasMore;
       hasMore.usage = !!usage.hasMore;
       hasMore.logs = !!logs.hasMore;
+      hasMore.feedback = !!feedback.hasMore;
       renderTables();
       updateLoadMoreButtons();
       setStatus("已登录", "ok");
@@ -94,10 +113,32 @@
     }
   }
 
+  function buildFeedbackQuery(offset) {
+    const status = $("feedbackStatusFilter") ? $("feedbackStatusFilter").value : "";
+    const sort = $("feedbackSort") ? $("feedbackSort").value : "newest";
+    return "limit=" + PAGE + "&offset=" + (offset || 0) + "&status=" + encodeURIComponent(status) + "&sort=" + encodeURIComponent(sort);
+  }
+
+  async function refreshFeedback() {
+    if (!token) return;
+    try {
+      const data = await api("/api/admin/feedback?" + buildFeedbackQuery(0));
+      cache.feedback = data.items || [];
+      offsets.feedback = 0;
+      hasMore.feedback = !!data.hasMore;
+      renderTables();
+      updateLoadMoreButtons();
+      msg("反馈已刷新", true);
+    } catch (e) {
+      msg(e.message || "反馈刷新失败", false);
+    }
+  }
+
   async function loadMore(kind, path, cacheKey) {
     if (!token || !hasMore[kind]) return;
     try {
-      const data = await api(path + "?limit=" + PAGE + "&offset=" + offsets[kind]);
+      const query = kind === "feedback" ? buildFeedbackQuery(offsets[kind]) : ("limit=" + PAGE + "&offset=" + offsets[kind]);
+      const data = await api(path + "?" + query);
       cache[cacheKey] = (cache[cacheKey] || []).concat(data.items || []);
       offsets[kind] = data.nextOffset || (offsets[kind] + (data.items || []).length);
       hasMore[kind] = !!data.hasMore;
@@ -110,7 +151,7 @@
   }
 
   function updateLoadMoreButtons() {
-    [["loadMoreRedemptions", "redemptions"], ["loadMoreUsage", "usage"], ["loadMoreLogs", "logs"]].forEach(([id, key]) => {
+    [["loadMoreRedemptions", "redemptions"], ["loadMoreUsage", "usage"], ["loadMoreLogs", "logs"], ["loadMoreFeedback", "feedback"]].forEach(([id, key]) => {
       const btn = $(id);
       if (btn) btn.classList.toggle("hidden", !hasMore[key]);
     });
@@ -130,6 +171,23 @@
     $("logTable").querySelector("tbody").innerHTML = cache.logs.map(l => tds([
       fmtTime(l.createdAt), l.level || "info", l.event || "-", l.message || ""
     ])).join("") || '<tr><td colspan="4">暂无记录</td></tr>';
+    const feedbackRows = cache.feedback.map(f => {
+      const src = f.source === "chat" ? "对话页" : "设置页";
+      const image = f.image ? '<button type="button" class="btn small view-feedback-image" data-id="' + esc(f.id) + '">查看图片</button>' : "-";
+      const options = [
+        ["unread", "未读"], ["solved", "已解决"], ["read_unsolved", "已读未解决"], ["invalid", "无效反馈"]
+      ].map(pair => '<option value="' + pair[0] + '"' + (f.status === pair[0] ? " selected" : "") + ">" + pair[1] + "</option>").join("");
+      const select = '<select class="status-select status-' + esc(f.status || "unread") + '" data-id="' + esc(f.id) + '">' + options + "</select>";
+      return "<tr>" +
+        "<td>" + esc(fmtTime(f.createdAt)) + "</td>" +
+        "<td>" + esc(src) + "</td>" +
+        "<td><span class='feedback-content'>" + esc(f.content || "") + "</span></td>" +
+        "<td>" + esc(f.contact || "-") + "</td>" +
+        "<td>" + image + "</td>" +
+        "<td>" + select + "</td>" +
+        "</tr>";
+    }).join("");
+    $("feedbackTable").querySelector("tbody").innerHTML = feedbackRows || '<tr><td colspan="6">暂无反馈</td></tr>';
   }
 
   function exportCsv(name, rows, headers) {
@@ -153,6 +211,37 @@
     $("loadMoreRedemptions").addEventListener("click", () => loadMore("redemptions", "/api/admin/redemptions", "redemptions"));
     $("loadMoreUsage").addEventListener("click", () => loadMore("usage", "/api/admin/usage", "usage"));
     $("loadMoreLogs").addEventListener("click", () => loadMore("logs", "/api/admin/logs", "logs"));
+    $("feedbackRefresh").addEventListener("click", refreshFeedback);
+    $("feedbackStatusFilter").addEventListener("change", refreshFeedback);
+    $("feedbackSort").addEventListener("change", refreshFeedback);
+    $("loadMoreFeedback").addEventListener("click", () => loadMore("feedback", "/api/admin/feedback", "feedback"));
+    $("exportFeedback").addEventListener("click", () => exportCsv("feedback", cache.feedback, ["createdAt", "source", "content", "contact", "status"]));
+    $("feedbackTable").addEventListener("click", (e) => {
+      const btn = e.target.closest(".view-feedback-image");
+      if (!btn) return;
+      const item = cache.feedback.find(x => x.id === btn.getAttribute("data-id"));
+      if (item && item.image) window.open(item.image, "_blank");
+    });
+    $("feedbackTable").addEventListener("change", async (e) => {
+      const select = e.target.closest("select[data-id]");
+      if (!select) return;
+      const id = select.getAttribute("data-id");
+      const status = select.value;
+      try {
+        const data = await apiPost("/api/admin/feedback/status", { id: id, status: status });
+        const item = cache.feedback.find(x => x.id === id);
+        if (item) {
+          item.status = status;
+          if (data.item && data.item.updatedAt) item.updatedAt = data.item.updatedAt;
+        }
+        Array.from(select.classList).filter(c => c.indexOf("status-") === 0).forEach(c => select.classList.remove(c));
+        select.classList.add("status-" + status);
+        msg("状态已更新", true);
+      } catch (err) {
+        msg(err.message || "状态更新失败", false);
+        renderTables();
+      }
+    });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind); else bind();
 })();

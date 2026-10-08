@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>费曼反向学校｜运营后台</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="css/styles.css?v=27" />
-  <link rel="stylesheet" href="css/responsive.css?v=27" />
+  <link rel="stylesheet" href="css/styles.css?v=29" />
+  <link rel="stylesheet" href="css/responsive.css?v=29" />
 </head>
 <body class="admin-body">
   <header class="topbar">
@@ -52,6 +52,27 @@
       <div class="table-wrap"><table id="usageTable"><thead><tr><th>时间</th><th>类型</th><th>知识点</th><th>输入 Token</th><th>输出 Token</th><th>总 Token</th><th>预估费用</th></tr></thead><tbody></tbody></table></div>
       <button id="exportUsage" class="btn small">导出 CSV</button>
       <button id="loadMoreUsage" class="btn small hidden">加载更多</button>
+    </section>
+
+    <section class="card">
+      <h2>意见反馈</h2>
+      <div class="admin-toolbar">
+        <select id="feedbackStatusFilter">
+          <option value="">全部状态</option>
+          <option value="unread">未读</option>
+          <option value="solved">已解决</option>
+          <option value="read_unsolved">已读未解决</option>
+          <option value="invalid">无效反馈</option>
+        </select>
+        <select id="feedbackSort">
+          <option value="newest">最新优先</option>
+          <option value="oldest">最早优先</option>
+        </select>
+        <button id="feedbackRefresh" class="btn small">刷新反馈</button>
+      </div>
+      <div class="table-wrap"><table id="feedbackTable"><thead><tr><th>时间</th><th>来源</th><th>内容</th><th>联系方式</th><th>图片</th><th>状态</th></tr></thead><tbody></tbody></table></div>
+      <button id="loadMoreFeedback" class="btn small hidden">加载更多</button>
+      <button id="exportFeedback" class="btn small">导出 CSV</button>
     </section>
 
     <section class="card">

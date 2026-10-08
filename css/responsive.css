@@ -392,3 +392,11 @@
     color:#6f83ad!important;
   }
 }
+
+/* 对话页新增“意见反馈”入口后，手机端按钮改为两列 */
+@media (max-width:640px){
+  body.page-chat .chat-head-actions{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    width:62%!important;
+  }
+}

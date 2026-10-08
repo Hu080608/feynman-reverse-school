@@ -282,6 +282,81 @@ function parseUsageFromSSE(text) {
   }
   return usage;
 }
+const FEEDBACK_STATUSES = ["unread", "solved", "read_unsolved", "invalid"];
+
+async function handleFeedbackSubmit(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const ip = request.headers.get("cf-connecting-ip") || "unknown";
+  if (!(await checkRateLimit(env, "feedback", ip, 5, 3600))) {
+    return json({ ok: false, error: "RATE_LIMITED", message: "反馈提交太频繁，请稍后再试。" }, 429, env);
+  }
+  const content = String(body.content || "").trim().slice(0, 1200);
+  const contact = String(body.contact || "").trim().slice(0, 160);
+  const image = String(body.image || "");
+  const source = ["settings", "chat"].includes(String(body.source || "")) ? String(body.source) : "settings";
+  if (!content) return json({ ok: false, error: "CONTENT_REQUIRED", message: "请填写反馈内容。" }, 400, env);
+  if (content.length < 5) return json({ ok: false, error: "CONTENT_TOO_SHORT", message: "反馈内容太短，请再写清楚一点。" }, 400, env);
+  if (image && !image.startsWith("data:image/")) return json({ ok: false, error: "INVALID_IMAGE", message: "图片格式不支持。" }, 400, env);
+  if (image.length > 3.2 * 1024 * 1024) return json({ ok: false, error: "IMAGE_TOO_LARGE", message: "图片太大，请压缩后再上传。" }, 413, env);
+  const token = String(body.token || "");
+  let session = null;
+  if (token) session = await kvGetJson(env, "session:" + token);
+  const now = Date.now();
+  const id = crypto.randomUUID();
+  const item = {
+    id: id,
+    content: content,
+    contact: contact,
+    image: image,
+    source: source,
+    status: "unread",
+    createdAt: now,
+    updatedAt: now,
+    tokenTail: token ? token.slice(-8) : "",
+    clientId: session ? (session.clientId || "") : "",
+    ip: ip,
+    userAgent: String(request.headers.get("user-agent") || "").slice(0, 200)
+  };
+  await kvPutJson(env, "feedback:" + id, item, { expirationTtl: 365 * 86400 });
+  await addSystemLog(env, "info", "feedback_submit", "用户提交反馈", { id: id, source: source });
+  return json({ ok: true, id: id, status: "unread" }, 200, env);
+}
+
+async function handleAdminFeedback(request, env) {
+  if (!isAdmin(request, env)) return json({ ok: false, error: "ADMIN_DENIED" }, 401, env);
+  const url = new URL(request.url);
+  const status = String(url.searchParams.get("status") || "");
+  const sort = String(url.searchParams.get("sort") || "newest");
+  const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit") || 100), 500));
+  const offset = Math.max(0, Number(url.searchParams.get("offset") || 0));
+  let items = await listRecords(env, "feedback:", 500, 0);
+  if (FEEDBACK_STATUSES.includes(status)) items = items.filter(f => f.status === status);
+  if (sort === "oldest") items = items.slice().reverse();
+  const total = items.length;
+  const page = items.slice(offset, offset + limit);
+  return json({ ok: true, items: page, total: total, nextOffset: offset + page.length, hasMore: offset + page.length < total }, 200, env);
+}
+
+async function handleAdminFeedbackStatus(request, env) {
+  if (!isAdmin(request, env)) return json({ ok: false, error: "ADMIN_DENIED" }, 401, env);
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const id = String(body.id || "");
+  const status = String(body.status || "");
+  if (!id || !FEEDBACK_STATUSES.includes(status)) {
+    return json({ ok: false, error: "INVALID_STATUS", message: "反馈状态无效。" }, 400, env);
+  }
+  const key = "feedback:" + id;
+  const item = await kvGetJson(env, key);
+  if (!item) return json({ ok: false, error: "NOT_FOUND", message: "反馈不存在。" }, 404, env);
+  item.status = status;
+  item.updatedAt = Date.now();
+  await kvPutJson(env, key, item, { expirationTtl: 365 * 86400 });
+  await addSystemLog(env, "info", "feedback_status", "反馈状态已更新", { id: id, status: status });
+  return json({ ok: true, item: item }, 200, env);
+}
+
 async function handleAdminLogin(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { body = {}; }
@@ -815,6 +890,9 @@ async function handleRequest(request, env) {
   if (path === "/api/pause" && request.method === "POST") return handlePause(request, env);
   if (path === "/api/vision" && request.method === "POST") return handleVision(request, env);
   if (path === "/api/clean-text" && request.method === "POST") return handleCleanText(request, env);
+  if (path === "/api/feedback" && request.method === "POST") return handleFeedbackSubmit(request, env);
+  if (path === "/api/admin/feedback" && request.method === "GET") return handleAdminFeedback(request, env);
+  if (path === "/api/admin/feedback/status" && request.method === "POST") return handleAdminFeedbackStatus(request, env);
   if (path === "/api/login" && request.method === "POST") return handleLogin(request, env);
   if (path === "/api/start" && request.method === "POST") return handleStart(request, env);
   if (path === "/api/chat" && request.method === "POST") return handleChat(request, env);
