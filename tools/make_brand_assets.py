@@ -109,7 +109,7 @@ def _section(draw, y, title, color=CYAN):
 
 
 def make_poster(path=None):
-    W, H = 1080, 2400
+    W, H = 1080, 2800
     path = path or os.path.join(DOCS, "费曼反向学校宣传图.png")
     img = Image.new("RGB", (W, H), DARK)
     draw = ImageDraw.Draw(img)
@@ -222,7 +222,12 @@ def make_poster(path=None):
     draw.multiline_text((320, 2205), "https://hu080608.github.io/\nfeynman-reverse-school/", font=font(20, False), fill=MUTED, spacing=8)
     draw.text((320, 2285), "教会 AI，才算学会。", font=font(24), fill=CYAN)
 
-    img.save(path, "PNG")
+    try:
+        img.save(path, "PNG")
+    except PermissionError:
+        alt = os.path.splitext(path)[0] + "_v2.png"
+        img.save(alt, "PNG")
+        path = alt
     print("已生成：" + path)
 
 
