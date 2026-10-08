@@ -400,3 +400,30 @@
     width:62%!important;
   }
 }
+
+/* 手机端对话页头部按钮最终版：标题独占一行，按钮三列 + 结束键整行 */
+@media (max-width:640px){
+  body.page-chat .chat-head{
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:8px!important;
+  }
+  body.page-chat .chat-head-actions{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    width:100%!important;
+    gap:6px!important;
+  }
+  body.page-chat .chat-head-actions .btn{
+    width:100%!important;
+    min-width:0!important;
+    min-height:42px!important;
+    font-size:10px!important;
+    padding:7px 3px!important;
+    line-height:1.2!important;
+    white-space:normal!important;
+  }
+  body.page-chat .chat-head-actions #endSessionBtn{
+    grid-column:1/-1!important;
+  }
+}
