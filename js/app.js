@@ -17,7 +17,7 @@
     userInput: $("userInput"), sendBtn: $("sendBtn"), hintBtn: $("hintBtn"), retryBtn: $("retryBtn"), endSessionBtn: $("endSessionBtn"), pauseExitBtn: $("pauseExitBtn"),
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), balancePanel: $("balancePanel"), toast: $("toast"),
     sidebar: $("sidebar"), sidebarToggle: $("sidebarToggle"), sidebarClose: $("sidebarClose"),
-    sidebarBackdrop: $("sidebarBackdrop"), lockHint: $("lockHint"), backSettingsBtn: $("backSettingsBtn"),
+    sidebarBackdrop: $("sidebarBackdrop"), lockHint: $("lockHint"),
     setupStep1: $("setupStep1"), setupStep2: $("setupStep2"), setupStep3: $("setupStep3"), setupHint: $("setupHint"),
     priorityBox: $("priorityBox")
   };
@@ -156,7 +156,7 @@
   }
   function showChat() {
     if (!canEnterChat()) return;
-    location.href = "chat.html";
+    location.href = "chat.html?v=33";
   }
   function showSettings() {
     clearReadonlyMode();
@@ -185,7 +185,7 @@
     saveState(); renderAll();
     // 历史对话一律只读：不消耗额度，也不能继续发送。
     sessionStorage.setItem("feynman_readonly", "1");
-    location.href = "chat.html";
+    location.href = "chat.html?v=33";
   }
   function updateControls() {
     const active = backendActive();
@@ -820,7 +820,7 @@
         state.currentSessionId = s.id;
         state.sessions[s.id] = s;
         saveState();
-        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html"; }
+        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=33"; }
         else { renderAll(); toast("请先激活后再开始对话。"); }
       });
     }
@@ -838,7 +838,7 @@
         if (s.endedAt) { toast("该对话已彻底结束，不能继续。请开始新对话。"); return; }
         if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
         clearReadonlyMode();
-        location.href = "chat.html";
+        location.href = "chat.html?v=33";
       });
     }
     if (els.sessionSelect) els.sessionSelect.addEventListener("change", updateControls);
@@ -872,7 +872,6 @@
         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); send(); }
       });
     }
-    if (els.backSettingsBtn) els.backSettingsBtn.addEventListener("click", showSettings);
     if (els.pauseExitBtn) {
       els.pauseExitBtn.addEventListener("click", async () => {
         if (!backendReady() || !state.backendToken) { location.href = "index.html"; return; }
@@ -948,7 +947,6 @@
       if (!s) { location.replace("index.html"); return; }
       if (isReadonlyMode()) {
         if (els.endSessionBtn) els.endSessionBtn.textContent = "退出只读";
-        if (els.backSettingsBtn) els.backSettingsBtn.textContent = "返回设置";
         renderAll();
         updateControls();
         document.body.classList.add("readonly-mode");
@@ -957,7 +955,6 @@
         return;
       }
       if (els.endSessionBtn) els.endSessionBtn.textContent = "结束本次对话（我已完全掌握本知识点）";
-      if (els.backSettingsBtn) els.backSettingsBtn.textContent = "暂时退出";
       if (!canEnterChat()) { location.replace("index.html"); return; }
       clearReadonlyMode();
       renderAll();
