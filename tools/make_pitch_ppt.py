@@ -144,7 +144,7 @@ def build():
     # 3 产品定位
     s = add_slide(prs); header(s, "PRODUCT", "费曼反向学校是什么？", 3)
     rect(s, 0.82, 1.65, 11.7, 1.35, PANEL2, LINE)
-    textbox(s, 1.12, 1.92, 11.1, 0.9, "AI 不扮演老师，而是扮演一个“装傻的学生”。", 23, True, CYAN, PP_ALIGN.CENTER, MSO_ANCHOR.MIDDLE)
+    textbox(s, 1.12, 1.92, 11.1, 0.9, "AI 不扮演老师，而是扮演一个需要被教会、会主动暴露不懂的学生。", 23, True, CYAN, PP_ALIGN.CENTER, MSO_ANCHOR.MIDDLE)
     bullets(s, 1.15, 3.35, 11.0, 1.9, [
         "用户学完一个知识点后，必须把这个知识点讲给 AI 听。",
         "AI 会追问、犯错、要求举例；讲不清时明确表示“我还没懂”。",
@@ -156,7 +156,7 @@ def build():
     s = add_slide(prs); header(s, "MECHANISM", "三步玩法：讲给 AI 听，把 AI 教会", 4)
     steps = [
         ("01", "用户讲解", "用大白话讲清知识点、原理、例子。", CYAN),
-        ("02", "AI 装傻", "追问、犯典型错误、要求举例，暴露盲点。", PURPLE),
+        ("02", "AI 学生", "追问、犯典型错误、要求举例，暴露盲点。", PURPLE),
         ("03", "考试通过", "达到标准，AI 输出“我学会了/考试通过”。", GREEN),
     ]
     x = 0.82
@@ -172,7 +172,7 @@ def build():
     s = add_slide(prs); header(s, "ADVANTAGES", "六个核心优势", 5)
     cards = [
         ("输出倒逼输入", "必须讲出来，输入自然更认真、更主动。", CYAN),
-        ("AI 装傻学生", "追问、犯错、要例子，持续暴露理解盲点。", PURPLE),
+        ("AI 学生机制", "追问、犯错、要例子，持续暴露理解盲点。", PURPLE),
         ("考试式通关", "达到标准才通过，学习结果可感知。", GREEN),
         ("多模态输入", "支持文本、Markdown、LaTeX、图片识图。", WARN),
         ("沉浸式体验", "流式回复、移动端适配、进度可视化。", CYAN),
@@ -186,7 +186,7 @@ def build():
             x = 0.82; y += 2.35
 
     # 6 AI 学生行为
-    s = add_slide(prs); header(s, "AI BEHAVIOR", "AI 学生如何“装傻”", 6)
+    s = add_slide(prs); header(s, "AI BEHAVIOR", "AI 学生如何暴露不懂", 6)
     items = [
         ("主动追问", "每轮至少提出一个问题，逼近知识盲点。", CYAN),
         ("典型错误", "故意犯该知识点的常见误区，等用户纠正。", WARN),
@@ -267,7 +267,7 @@ def build():
     # 12 路线图
     s = add_slide(prs); header(s, "ROADMAP", "路线图", 12)
     roadmap = [
-        ("v1.3 已完成", "AI 装傻学生、流式对话、激活码、计时/次数、后台统计、DeepSeek 识图。", GREEN),
+        ("v1.3 已完成", "AI 学生机制、流式对话、激活码、计时/次数、后台统计、DeepSeek 识图。", GREEN),
         ("v1.4 计划", "学习报告、薄弱点分析、分享战绩、自动发码。", CYAN),
         ("v2.0 计划", "题库训练、班级/小组、教师后台、多模型接入。", PURPLE),
     ]

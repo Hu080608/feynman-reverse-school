@@ -18,6 +18,7 @@ PANEL = (15, 24, 44)
 TEXT = (238, 244, 255)
 MUTED = (147, 166, 207)
 GREEN = (34, 197, 94)
+WARN = (245, 158, 11)
 NAVY = (15, 30, 62)
 
 
@@ -95,8 +96,20 @@ def center_text(draw, y, text, f, fill, width):
     draw.text(((width - w) / 2 - bbox[0], y), text, font=f, fill=fill)
 
 
+def _card(draw, x, y, w, h, title, body, color):
+    draw.rounded_rectangle([x, y, x + w, y + h], radius=22, fill=PANEL)
+    draw.rectangle([x, y, x + 8, y + h], fill=color)
+    draw.text((x + 24, y + 16), title, font=font(27), fill=TEXT)
+    draw.multiline_text((x + 24, y + 62), body, font=font(19, False), fill=MUTED, spacing=8)
+
+
+def _section(draw, y, title, color=CYAN):
+    draw.rectangle([80, y, 92, y + 36], fill=color)
+    draw.text((112, y - 3), title, font=font(34), fill=TEXT)
+
+
 def make_poster(path=None):
-    W, H = 1080, 1920
+    W, H = 1080, 2400
     path = path or os.path.join(DOCS, "费曼反向学校宣传图.png")
     img = Image.new("RGB", (W, H), DARK)
     draw = ImageDraw.Draw(img)
@@ -107,7 +120,6 @@ def make_poster(path=None):
         g = int(11 * (1 - t) + 20 * t)
         b = int(22 * (1 - t) + 45 * t)
         draw.line([(0, y), (W, y)], fill=(r, g, b))
-    # 氛围圆
     overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     od = ImageDraw.Draw(overlay)
     od.ellipse([-180, -120, 520, 520], fill=(109, 140, 255, 34))
@@ -115,41 +127,100 @@ def make_poster(path=None):
     img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    # 顶部图标
-    icon = Image.open(os.path.join(TOOL_ASSETS, "icon.png")).convert("RGBA")
-    icon = icon.resize((220, 220), Image.LANCZOS)
-    img.paste(icon, (int((W - 220) / 2), 110), icon)
+    icon = Image.open(os.path.join(TOOL_ASSETS, "icon.png")).convert("RGBA").resize((180, 180), Image.LANCZOS)
+    img.paste(icon, (int((W - 180) / 2), 60), icon)
+    center_text(draw, 285, "费曼反向学校", font(64), TEXT, W)
+    center_text(draw, 365, "教会 AI 才算学会", font(40), CYAN, W)
+    center_text(draw, 420, "输出倒逼输入 · AI 越笨，用户越强", font(24, False), MUTED, W)
 
-    # 标题
-    center_text(draw, 370, "费曼反向学校", font(72), TEXT, W)
-    center_text(draw, 470, "教会 AI 才算学会", font(44), CYAN, W)
-    center_text(draw, 550, "输出倒逼输入 · AI 越笨，用户越强", font(28, False), MUTED, W)
-
-    # 卡片
-    cards = [
-        ("AI 装傻学生", "主动追问 · 故意犯错 · 要求举例\n讲不清时，它绝不假装懂", PURPLE),
-        ("考试式通关", "用户把知识点讲给 AI 听\nAI 真正学会并通过考试，才算通关", CYAN),
-        ("多模态学习", "支持 Markdown / LaTeX / 图片识图\n自动整理排版，学习结果看得见", GREEN),
+    # 1 为什么
+    _section(draw, 520, "为什么学了就忘？", WARN)
+    items = [
+        ("只看不输出", "知识只是从眼前经过，没有真正进入大脑。"),
+        ("以为懂了", "看懂别人的讲解，和能自己讲清楚，是两种能力。"),
+        ("缺少反馈", "没有人追问、挑错、要例子，盲点永远藏着。"),
     ]
-    y = 700
-    for title, body, color in cards:
-        rounded(draw, [80, y, W - 80, y + 230], 34, PANEL, LINE if False else None)
-        draw.rectangle([80, y, 92, y + 230], fill=color)
-        draw.text((130, y + 38), title, font=font(38), fill=TEXT)
-        draw.multiline_text((130, y + 110), body, font=font(25, False), fill=MUTED, spacing=12)
-        y += 270
+    y = 580
+    for t, b in items:
+        draw.rounded_rectangle([80, y, W - 80, y + 78], radius=18, fill=PANEL)
+        draw.ellipse([104, y + 26, 130, y + 52], fill=WARN)
+        draw.text((150, y + 14), t, font=font(25), fill=TEXT)
+        draw.text((360, y + 18), b, font=font(19, False), fill=MUTED)
+        y += 94
 
-    # 底部二维码
+    # 2 三步
+    _section(draw, 900, "三步把 AI 教会", CYAN)
+    steps = [
+        ("01", "用户讲解", "用自己的话讲清定义、原理和例子。"),
+        ("02", "AI 学生", "主动追问、故意犯错、要求举例。"),
+        ("03", "考试通关", "AI 真正学会后，输出通过判定。"),
+    ]
+    x = 80
+    for num, t, b in steps:
+        draw.rounded_rectangle([x, 960, x + 296, 1190], radius=24, fill=PANEL)
+        draw.text((x + 26, 984), num, font=font(34), fill=CYAN)
+        draw.text((x + 26, 1042), t, font=font(28), fill=TEXT)
+        draw.multiline_text((x + 26, 1098), b, font=font(19, False), fill=MUTED, spacing=8)
+        if x < 700:
+            draw.text((x + 305, 1050), "→", font=font(34), fill=MUTED)
+        x += 320
+
+    # 3 六大优势
+    _section(draw, 1240, "六大核心优势", PURPLE)
+    advantages = [
+        ("输出倒逼输入", "必须讲出来，输入自然更认真、更主动。"),
+        ("AI 学生机制", "追问、犯错、要例子，持续暴露理解盲点。"),
+        ("考试式通关", "达到标准才通过，学习结果可感知。"),
+        ("多模态输入", "文本、Markdown、LaTeX、图片识图。"),
+        ("沉浸式体验", "流式回复、移动端适配、进度可视化。"),
+        ("商业化闭环", "激活码、时长/次数、后台统计一键打通。"),
+    ]
+    positions = [(80, 1300), (560, 1300), (80, 1470), (560, 1470), (80, 1640), (560, 1640)]
+    for (t, b), (cx, cy) in zip(advantages, positions):
+        _card(draw, cx, cy, 440, 145, t, b, PURPLE if cy < 1400 else CYAN)
+
+    # 4 功能亮点
+    _section(draw, 1820, "功能亮点", GREEN)
+    lines = [
+        "Markdown + LaTeX：公式、表格、代码块都能正常显示。",
+        "DeepSeek 视觉识图：图片自动识别文字和公式并整理排版。",
+        "逐字流式回复：像真实对话一样自然，学习节奏更顺畅。",
+        "账号与余额可恢复：换设备也能用激活码找回，余额不丢。",
+    ]
+    yy = 1880
+    for line in lines:
+        draw.ellipse([96, yy + 9, 112, yy + 25], fill=GREEN)
+        draw.text((132, yy), line, font=font(20, False), fill=TEXT)
+        yy += 52
+
+    # 5 适合谁
+    _section(draw, 2100, "适合谁用", WARN)
+    users = [
+        ("学生 / 备考党", "数学、物理、计算机、考研、雅思托福。"),
+        ("知识工作者", "快速吃透新领域，写作前先讲一遍。"),
+        ("教师 / 培训师", "用反向教学检验自己是否真懂。"),
+        ("自学者", "读书、看课后，把知识讲给 AI 听。"),
+    ]
+    ux, uy = 80, 2160
+    for i, (t, b) in enumerate(users):
+        _card(draw, ux, uy, 440, 90, t, b, WARN)
+        if i % 2 == 1:
+            ux = 80; uy += 108
+        else:
+            ux = 560
+
+    # 二维码与结尾
     import qrcode
-    qr = qrcode.QRCode(box_size=10, border=1)
+    qr = qrcode.QRCode(box_size=8, border=1)
     qr.add_data("https://hu080608.github.io/feynman-reverse-school/")
     qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="#0b1020", back_color="white").convert("RGB").resize((240, 240), Image.NEAREST)
-    frame = Image.new("RGB", (272, 272), (255, 255, 255))
-    frame.paste(qr_img, (16, 16))
-    img.paste(frame, (100, 1560))
-    draw.text((400, 1578), "扫码体验", font=font(30), fill=TEXT)
-    draw.multiline_text((400, 1625), "https://hu080608.github.io/\nfeynman-reverse-school/", font=font(20, False), fill=MUTED, spacing=8)
+    qr_img = qr.make_image(fill_color="#0b1020", back_color="white").convert("RGB").resize((180, 180), Image.NEAREST)
+    frame = Image.new("RGB", (204, 204), (255, 255, 255))
+    frame.paste(qr_img, (12, 12))
+    img.paste(frame, (80, 2320 - 180))
+    draw.text((320, 2160 + 120), "扫码体验", font=font(32), fill=TEXT)
+    draw.multiline_text((320, 2205), "https://hu080608.github.io/\nfeynman-reverse-school/", font=font(20, False), fill=MUTED, spacing=8)
+    draw.text((320, 2285), "教会 AI，才算学会。", font=font(24), fill=CYAN)
 
     img.save(path, "PNG")
     print("已生成：" + path)
