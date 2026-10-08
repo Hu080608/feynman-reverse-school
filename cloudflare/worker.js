@@ -105,7 +105,8 @@ function newSession(clientId) {
     remainingUses: 0,
     timeActiveAt: null,
     priority: "time",
-    endedConversations: []
+    endedConversations: [],
+    recoveryCount: 0
   };
 }
 
@@ -130,6 +131,7 @@ function migrateSession(session, now) {
   session.closing = false;
   session.priority = session.priority || "time";
   session.endedConversations = Array.isArray(session.endedConversations) ? session.endedConversations : [];
+  session.recoveryCount = Number(session.recoveryCount || 0);
   delete session.grants;
   session.updatedAt = now;
   return true;
@@ -720,7 +722,11 @@ async function handleLogin(request, env) {
   if (!token) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "该激活码对应的会话已失效，请重新购买。" }, 404, env);
   const session = await kvGetJson(env, "session:" + token);
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "该激活码对应的会话已失效，请重新购买。" }, 404, env);
+  if (Number(session.recoveryCount || 0) >= 20) {
+    return json({ ok: false, error: "RECOVERY_LIMITED", message: "该账号恢复次数已达上限，请联系客服。" }, 429, env);
+  }
   const now = Date.now();
+  session.recoveryCount = Number(session.recoveryCount || 0) + 1;
   refreshSession(session, now, false);
   await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
   return json({ ok: true, token: token, status: statusPayload(session, now) }, 200, env);
