@@ -263,7 +263,8 @@ async function addSystemLog(env, level, event, message, meta) {
   });
 }
 function isAdmin(request, env) {
-  return String(request.headers.get("x-admin-token") || "") === String(env.ADMIN_TOKEN || "");
+  const expected = String(env.ADMIN_TOKEN || "");
+  return !!expected && String(request.headers.get("x-admin-token") || "") === expected;
 }
 function parseUsageFromSSE(text) {
   let usage = null;
