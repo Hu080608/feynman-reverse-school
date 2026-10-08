@@ -18,7 +18,8 @@
     licensePill: $("licensePill"), timePill: $("timePill"), passPill: $("passPill"), balancePanel: $("balancePanel"), toast: $("toast"),
     sidebar: $("sidebar"), sidebarToggle: $("sidebarToggle"), sidebarClose: $("sidebarClose"),
     sidebarBackdrop: $("sidebarBackdrop"), lockHint: $("lockHint"), backSettingsBtn: $("backSettingsBtn"),
-    setupStep1: $("setupStep1"), setupStep2: $("setupStep2"), setupStep3: $("setupStep3"), setupHint: $("setupHint")
+    setupStep1: $("setupStep1"), setupStep2: $("setupStep2"), setupStep3: $("setupStep3"), setupHint: $("setupHint"),
+    priorityBox: $("priorityBox")
   };
 
   let state = loadState();
@@ -894,16 +895,22 @@
         if (isReadonlyMode()) { clearReadonlyMode(); location.href = "index.html"; return; }
         if (s.messages.length && !confirm("结束本次对话？结束后如果服务已到期，将不能继续发送。")) return;
         s.endedAt = Date.now();
+        touchSession(s);
+        saveState();
         if (backendReady() && state.backendToken) {
+          const url = B.baseUrl() + "/api/end";
+          const payload = JSON.stringify({ token: state.backendToken, conversationId: s.id || "" });
           try {
-            const res = await B.end(state.backendToken, s.id || "");
-            state.backendStatus = res.status || state.backendStatus;
-            state.backendStatusAt = Date.now();
+            navigator.sendBeacon(url, new Blob([payload], { type: "text/plain" }));
           } catch (e) {
-            toast(e && e.message ? e.message : "结束后端状态失败");
+            fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: payload,
+              keepalive: true
+            }).catch(() => {});
           }
         }
-        touchSession(s);
         location.href = "index.html";
       });
     }

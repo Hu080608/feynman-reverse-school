@@ -382,3 +382,13 @@
     padding:7px 10px;
   }
 }
+
+/* 手机端显示制作者与版本 */
+@media (max-width:640px){
+  body.page-chat .app-meta{
+    display:block!important;
+    padding:4px 0 6px!important;
+    font-size:10px!important;
+    color:#6f83ad!important;
+  }
+}
