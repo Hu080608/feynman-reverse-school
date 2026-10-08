@@ -174,17 +174,19 @@
     const feedbackRows = cache.feedback.map(f => {
       const src = f.source === "chat" ? "对话页" : "设置页";
       const image = f.image ? '<button type="button" class="btn small view-feedback-image" data-id="' + esc(f.id) + '">查看图片</button>' : "-";
-      const options = [
-        ["unread", "未读"], ["solved", "已解决"], ["read_unsolved", "已读未解决"], ["invalid", "无效反馈"]
-      ].map(pair => '<option value="' + pair[0] + '"' + (f.status === pair[0] ? " selected" : "") + ">" + pair[1] + "</option>").join("");
-      const select = '<select class="status-select status-' + esc(f.status || "unread") + '" data-id="' + esc(f.id) + '">' + options + "</select>";
+      const statusMap = { unread: "未读", solved: "已解决", read_unsolved: "已读未解决", invalid: "无效反馈" };
+      const currentStatus = statusMap[f.status] ? f.status : "unread";
+      const options = Object.keys(statusMap).map(v => '<option value="' + v + '"' + (currentStatus === v ? " selected" : "") + ">" + statusMap[v] + "</option>").join("");
+      const badge = '<span class="status-badge status-' + esc(currentStatus) + '">' + esc(statusMap[currentStatus]) + "</span>";
+      const select = '<select class="status-select" data-id="' + esc(f.id) + '">' + options + "</select>";
+      const statusCell = badge + select;
       return "<tr>" +
         "<td>" + esc(fmtTime(f.createdAt)) + "</td>" +
         "<td>" + esc(src) + "</td>" +
         "<td><span class='feedback-content'>" + esc(f.content || "") + "</span></td>" +
         "<td>" + esc(f.contact || "-") + "</td>" +
         "<td>" + image + "</td>" +
-        "<td>" + select + "</td>" +
+        "<td>" + statusCell + "</td>" +
         "</tr>";
     }).join("");
     $("feedbackTable").querySelector("tbody").innerHTML = feedbackRows || '<tr><td colspan="6">暂无反馈</td></tr>';
@@ -234,8 +236,13 @@
           item.status = status;
           if (data.item && data.item.updatedAt) item.updatedAt = data.item.updatedAt;
         }
-        Array.from(select.classList).filter(c => c.indexOf("status-") === 0).forEach(c => select.classList.remove(c));
-        select.classList.add("status-" + status);
+        const statusMap = { unread: "未读", solved: "已解决", read_unsolved: "已读未解决", invalid: "无效反馈" };
+        const cell = select.closest("td");
+        const badge = cell ? cell.querySelector(".status-badge") : null;
+        if (badge) {
+          badge.className = "status-badge status-" + status;
+          badge.textContent = statusMap[status] || "未读";
+        }
         msg("状态已更新", true);
       } catch (err) {
         msg(err.message || "状态更新失败", false);

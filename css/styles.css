@@ -404,7 +404,17 @@ body.readonly-mode .readonly-banner{
   padding:7px 9px;
   border-radius:10px;
   font-size:12px;
+}
+.status-badge{
+  display:inline-block;
+  margin-right:6px;
+  padding:4px 8px;
+  border:1px solid currentColor;
+  border-radius:999px;
+  font-size:11px;
   font-weight:700;
+  vertical-align:middle;
+  white-space:nowrap;
 }
 .status-unread{background:rgba(239,68,68,.16);color:#fca5a5;border-color:rgba(239,68,68,.55)}
 .status-solved{background:rgba(34,197,94,.16);color:#9ef0b5;border-color:rgba(34,197,94,.55)}
