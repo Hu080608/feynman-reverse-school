@@ -34,9 +34,14 @@ function json(data, status, env) {
 }
 
 function b64urlToBytes(s) {
-  s = String(s || "").replace(/-/g, "+").replace(/_/g, "/");
+  s = String(s || "").replace(/[^A-Za-z0-9=_-]/g, "").replace(/-/g, "+").replace(/_/g, "/");
   while (s.length % 4) s += "=";
-  const bin = atob(s);
+  let bin;
+  try {
+    bin = atob(s);
+  } catch (e) {
+    throw new Error("激活码内容不是有效的 Base64URL，请重新完整复制。");
+  }
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
@@ -67,12 +72,16 @@ async function verifyLicenseCode(code, env, ignoreExpiry) {
   const raw = String(code || "").trim().replace(/\s+/g, "");
   const parts = raw.split(".");
   if (parts.length !== 2) throw new Error("激活码格式不正确。");
-  const payloadText = new TextDecoder().decode(b64urlToBytes(parts[0]));
+  let payloadText;
+  try { payloadText = new TextDecoder().decode(b64urlToBytes(parts[0])); }
+  catch (e) { throw new Error("激活码格式不正确，请重新复制完整激活码。"); }
   let payload;
   try { payload = JSON.parse(payloadText); }
   catch (e) { throw new Error("激活码载荷无法解析。"); }
   const expected = await hmacSha256(env.LICENSE_SECRET || "", payloadText);
-  const actual = b64urlToBytes(parts[1]);
+  let actual;
+  try { actual = b64urlToBytes(parts[1]); }
+  catch (e) { throw new Error("激活码签名格式不正确，请重新复制完整激活码。"); }
   if (!timingSafeEqual(expected, actual)) throw new Error("激活码签名无效。");
   if (payload.v !== 2) throw new Error("激活码版本不支持。");
   if (!["time", "count"].includes(payload.type)) throw new Error("激活码套餐类型无效。");

@@ -156,7 +156,7 @@
   }
   function showChat() {
     if (!canEnterChat()) return;
-    location.href = "chat.html?v=36";
+    location.href = "chat.html?v=37";
   }
   function showSettings() {
     clearReadonlyMode();
@@ -185,7 +185,7 @@
     saveState(); renderAll();
     // 历史对话一律只读：不消耗额度，也不能继续发送。
     sessionStorage.setItem("feynman_readonly", "1");
-    location.href = "chat.html?v=36";
+    location.href = "chat.html?v=37";
   }
   function updateControls() {
     const active = backendActive();
@@ -554,9 +554,13 @@
     }
   }
   async function activateCode() {
-    const code = els.activationCode.value.trim();
+    const code = els.activationCode.value.trim().replace(/\s+/g, "");
     if (!backendReady()) { els.activationMsg.textContent = "❌ 后端未配置，请检查 js/config.js 的 BACKEND.url。"; return; }
     if (!code) { toast("请输入激活码。"); return; }
+    if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(code)) {
+      els.activationMsg.textContent = "❌ 激活码格式不正确，请重新完整复制。";
+      return;
+    }
     els.activateBtn.disabled = true;
     els.activationMsg.textContent = "正在校验并核销...";
     try {
@@ -820,7 +824,7 @@
         state.currentSessionId = s.id;
         state.sessions[s.id] = s;
         saveState();
-        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=36"; }
+        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=37"; }
         else { renderAll(); toast("请先激活后再开始对话。"); }
       });
     }
@@ -838,7 +842,7 @@
         if (s.endedAt) { toast("该对话已彻底结束，不能继续。请开始新对话。"); return; }
         if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
         clearReadonlyMode();
-        location.href = "chat.html?v=36";
+        location.href = "chat.html?v=37";
       });
     }
     if (els.sessionSelect) els.sessionSelect.addEventListener("change", updateControls);
