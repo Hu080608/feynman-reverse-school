@@ -427,3 +427,32 @@
     grid-column:1/-1!important;
   }
 }
+
+/* 对话页已移除意见反馈：手机端两个按钮等宽一行 */
+@media (max-width:640px){
+  body.page-chat .chat-head{
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:8px!important;
+  }
+  body.page-chat .chat-head-actions{
+    display:flex!important;
+    flex-direction:row!important;
+    flex-wrap:wrap!important;
+    width:100%!important;
+    gap:6px!important;
+  }
+  body.page-chat .chat-head-actions .btn{
+    flex:1 1 46%!important;
+    width:auto!important;
+    min-width:0!important;
+    min-height:44px!important;
+    font-size:11px!important;
+    padding:7px 4px!important;
+    line-height:1.2!important;
+    white-space:normal!important;
+  }
+  body.page-chat .chat-head-actions #endSessionBtn{
+    grid-column:auto!important;
+  }
+}
