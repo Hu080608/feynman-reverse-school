@@ -4,6 +4,10 @@
   const $ = id => document.getElementById(id);
   const TOKEN_KEY = "feynman_user_session";
   let currentUser = null;
+  const params = new URLSearchParams(location.search);
+  const force = params.get("force") === "1";
+  const returnPage = params.get("return") || "settings";
+  const targetUrl = returnPage === "chat" ? "chat.html?v=44" : "index.html?v=43";
 
   function toast(text) {
     const el = $("toast");
@@ -44,8 +48,16 @@
     $("registerForm").classList.toggle("hidden", !showRegister);
   }
 
+  function goBackIfNeeded() {
+    if (!force && !params.get("return")) return;
+    setTimeout(() => { location.href = targetUrl; }, 900);
+  }
+
   function renderProfile(user) {
     currentUser = user;
+    try { localStorage.setItem("feynman_user_profile", JSON.stringify(user)); } catch (e) {}
+    const notice = $("forceNotice");
+    if (notice) notice.classList.toggle("hidden", !force);
     $("authView").classList.add("hidden");
     $("profileView").classList.remove("hidden");
     $("profileTitle").textContent = (user.nickname || user.username || "我的资料") + " 的资料";
@@ -73,6 +85,7 @@
       if (!res || !res.ok) throw new Error((res && res.message) || "登录状态失效");
       renderProfile(res.user);
       syncLicenseToApp(res);
+      goBackIfNeeded();
     } catch (e) {
       setToken("");
       showAuth(false);
@@ -96,6 +109,7 @@
         renderProfile(res.user);
         syncLicenseToApp(res);
         toast(res.licenseToken ? "登录成功，学习额度已同步" : "登录成功");
+        goBackIfNeeded();
       } catch (err) {
         msg("loginMsg", err.message || "登录失败");
       }
@@ -115,6 +129,7 @@
         renderProfile(res.user);
         syncLicenseToApp(res);
         toast("注册成功");
+        goBackIfNeeded();
       } catch (err) {
         msg("registerMsg", err.message || "注册失败");
       }

@@ -644,6 +644,55 @@ async function handleUserChangePassword(request, env) {
   return json({ ok: true, token: token, user: publicUser(user) }, 200, env);
 }
 
+async function handleExamGrade(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const token = String(body.token || "");
+  const knowledgePoint = String(body.knowledgePoint || "").trim().slice(0, 200);
+  const answers = Array.isArray(body.answers) ? body.answers.map(x => String(x || "").trim().slice(0, 2000)) : [];
+  if (!token) return json({ ok: false, error: "TOKEN_REQUIRED" }, 400, env);
+  const session = await kvGetJson(env, "session:" + token);
+  if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "请先在对话页开始学习。" }, 404, env);
+  if (!sessionAvailable(session)) return json({ ok: false, error: "NO_ACTIVE_LICENSE", message: "当前没有可用时长/次数，不能参加考核。" }, 402, env);
+  if (!(await checkRateLimit(env, "exam", token, 10, 3600))) return json({ ok: false, error: "RATE_LIMITED", message: "考核请求太频繁，请稍后再试。" }, 429, env);
+  const text = "知识点：" + (knowledgePoint || "未填写") + "\n\n学生回答：\n" + answers.map((a, i) => (i + 1) + ". " + (a || "未作答")).join("\n");
+  const upstream = await fetch(joinUrl(env.DEEPSEEK_BASE_URL || "https://api.deepseek.com", "chat/completions"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + (env.DEEPSEEK_API_KEY || "")
+    },
+    body: JSON.stringify({
+      model: env.DEEPSEEK_MODEL || "deepseek-chat",
+      messages: [
+        { role: "system", content: "你是一位严格但友好的考官。请根据知识点和学生回答进行点评，指出优点与不足，并给出 0-100 的整数分数。最后单独一行输出 [[SCORE:分数]]。" },
+        { role: "user", content: text }
+      ],
+      temperature: 0.2,
+      max_tokens: 1200,
+      stream: false
+    })
+  });
+  if (!upstream.ok) {
+    await addSystemLog(env, "error", "exam_upstream", "考核评分接口错误", {});
+    return json({ ok: false, error: "UPSTREAM_ERROR", message: "考核服务暂时不可用，请稍后重试。" }, 502, env);
+  }
+  const data = await upstream.json().catch(() => null);
+  const raw = data && data.choices && data.choices[0] && data.choices[0].message ? String(data.choices[0].message.content || "") : "";
+  let score = 0;
+  const m = raw.match(/\[\[SCORE:(\d{1,3})\]\]/);
+  if (m) score = Number(m[1]);
+  else {
+    const m2 = raw.match(/(\d{1,3})\s*分/);
+    if (m2) score = Number(m2[1]);
+  }
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  const comment = raw.replace(/\[\[SCORE:\d{1,3}\]\]/g, "").trim();
+  await addUsageRecord(env, data && data.usage, "exam", env.DEEPSEEK_MODEL || "deepseek-chat", knowledgePoint, session.clientId || "", token);
+  await addSystemLog(env, "info", "exam_grade", "通关考核评分完成", { score: score });
+  return json({ ok: true, score: score, pass: score >= 80, comment: comment || "已完成评分。" }, 200, env);
+}
+
 async function handleAdminLogin(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { body = {}; }
@@ -1198,6 +1247,7 @@ async function handleRequest(request, env) {
   if (path === "/api/user/me" && request.method === "POST") return handleUserMe(request, env);
   if (path === "/api/user/profile" && request.method === "POST") return handleUserProfileUpdate(request, env);
   if (path === "/api/user/password" && request.method === "POST") return handleUserChangePassword(request, env);
+  if (path === "/api/exam/grade" && request.method === "POST") return handleExamGrade(request, env);
   if (path === "/api/redeem" && request.method === "POST") return handleRedeem(request, env);
   if (path === "/api/status" && request.method === "POST") return handleStatus(request, env);
   if (path === "/api/pause" && request.method === "POST") return handlePause(request, env);

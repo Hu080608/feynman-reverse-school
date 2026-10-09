@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://api.feynman-hsj.top http://127.0.0.1:8787 http://localhost:8787; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>通关考核（可选）｜费曼反向学校</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css?v=44" />
+  <link rel="stylesheet" href="css/responsive.css?v=44" />
+  <link rel="stylesheet" href="css/exam.css?v=1" />
+</head>
+<body class="page-exam">
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="assets/logo.svg" alt="费曼反向学校" />
+      <div><h1>费曼反向学校</h1><p>通关考核 · 可选</p></div>
+    </div>
+    <a class="btn small" href="chat.html?v=44">返回对话</a>
+  </header>
+
+  <main class="exam-page">
+    <section class="card exam-card">
+      <div class="s-badge">通关考核（可选）</div>
+      <h2>愿意的话，来一次真正的检验</h2>
+      <p class="hint">这不是必须的。你可以随时跳过，也可以认真答完，让 AI 考官给你一个分数和反馈。</p>
+      <label for="examKnowledge">知识点</label>
+      <input id="examKnowledge" readonly placeholder="请先在对话页填写知识点" />
+      <form id="examForm">
+        <label>1. 请用自己的话解释这个知识点。</label>
+        <textarea id="answer1" rows="3" placeholder="用自己的话讲清楚"></textarea>
+        <label>2. 请举一个例子或应用场景。</label>
+        <textarea id="answer2" rows="3" placeholder="举一个具体例子"></textarea>
+        <label>3. 请说说它常见的误区或易错点。</label>
+        <textarea id="answer3" rows="3" placeholder="说说容易错在哪里"></textarea>
+        <p id="examMsg" class="hint"></p>
+        <div class="btn-row">
+          <button id="skipExamBtn" class="btn" type="button">跳过考核</button>
+          <button id="submitExamBtn" class="btn primary" type="submit">提交考核</button>
+        </div>
+      </form>
+      <div id="examResult" class="exam-result hidden"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="js/config.js" defer></script>
+  <script src="js/backend.js" defer></script>
+  <script src="js/exam.js" defer></script>
+</body>
+</html>

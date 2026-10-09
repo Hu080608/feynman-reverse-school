@@ -1,0 +1,17 @@
+body.page-exam{min-height:100dvh;overflow-y:auto!important}
+.exam-page{width:100%;max-width:840px;margin:0 auto;padding:22px 16px 60px}
+.exam-card{padding:20px}
+.exam-card h2{font-size:20px;margin-bottom:8px}
+.exam-card label{margin-top:14px}
+.exam-card textarea{min-height:88px}
+.exam-result{
+  margin-top:16px;padding:14px;border-radius:14px;
+  border:1px solid var(--line);background:rgba(8,13,28,.65);line-height:1.8;
+}
+.exam-result.pass{border-color:rgba(34,197,94,.55);background:rgba(5,46,22,.5)}
+.exam-result.fail{border-color:rgba(245,158,11,.55);background:rgba(69,41,4,.5)}
+.exam-score{font-size:30px;font-weight:900;color:#9ef0b5}
+@media (max-width:640px){
+  .exam-page{padding:14px 10px 50px}
+  .exam-card{padding:16px}
+}

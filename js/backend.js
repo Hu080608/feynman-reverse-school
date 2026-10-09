@@ -75,6 +75,9 @@
   async function userPassword(token, oldPassword, newPassword, confirmPassword) {
     return postJson("/api/user/password", { token: token, oldPassword: oldPassword, newPassword: newPassword, confirmPassword: confirmPassword });
   }
+  async function examGrade(token, knowledgePoint, answers) {
+    return postJson("/api/exam/grade", { token: token, knowledgePoint: knowledgePoint, answers: answers });
+  }
 
   async function chat(token, payload, onDelta) {
     const url = baseUrl() + "/api/chat";
@@ -128,5 +131,5 @@
     return full;
   }
 
-  window.FeynmanBackend = { redeem, login, cleanText, vision, feedback, userRegister, userLogin, userLogout, userMe, userProfile, userPassword, status, start, pause, end, chat, baseUrl };
+  window.FeynmanBackend = { redeem, login, cleanText, vision, feedback, userRegister, userLogin, userLogout, userMe, userProfile, userPassword, examGrade, status, start, pause, end, chat, baseUrl };
 })();
