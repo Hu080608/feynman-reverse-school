@@ -486,6 +486,16 @@ async function getUserLicensePayload(env, userId) {
   return { licenseToken: licenseToken, licenseStatus: session ? statusPayload(session, Date.now()) : null };
 }
 
+async function handleUserCheckName(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { body = {}; }
+  const username = String(body.username || "").trim();
+  const error = validateUsername(username);
+  if (error) return json({ ok: false, error: "INVALID_USERNAME", message: error }, 400, env);
+  const existing = await env.LICENSE_KV.get("user:name:" + normalizeUsername(username));
+  return json({ ok: true, available: !existing }, 200, env);
+}
+
 async function handleUserRegister(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
@@ -1241,6 +1251,7 @@ async function handleRequest(request, env) {
   if (path === "/api/health" && request.method === "GET") {
     return json({ ok: true, service: "feynman-reverse-school-api", time: Date.now() }, 200, env);
   }
+  if (path === "/api/user/check-name" && request.method === "POST") return handleUserCheckName(request, env);
   if (path === "/api/user/register" && request.method === "POST") return handleUserRegister(request, env);
   if (path === "/api/user/login" && request.method === "POST") return handleUserLogin(request, env);
   if (path === "/api/user/logout" && request.method === "POST") return handleUserLogout(request, env);

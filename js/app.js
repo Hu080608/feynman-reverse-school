@@ -156,7 +156,7 @@
   }
   function showChat() {
     if (!canEnterChat()) return;
-    location.href = "chat.html?v=45";
+    location.href = "chat.html?v=46";
   }
   function bindSettingsTabs() {
     const tabs = Array.from(document.querySelectorAll("[data-settings-tab]"));
@@ -200,7 +200,7 @@
     saveState(); renderAll();
     // 历史对话一律只读：不消耗额度，也不能继续发送。
     sessionStorage.setItem("feynman_readonly", "1");
-    location.href = "chat.html?v=45";
+    location.href = "chat.html?v=46";
   }
   function updateControls() {
     const active = backendActive();
@@ -857,7 +857,7 @@
         state.currentSessionId = s.id;
         state.sessions[s.id] = s;
         saveState();
-        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=45"; }
+        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=46"; }
         else { renderAll(); toast("请先激活后再开始对话。"); }
       });
     }
@@ -875,7 +875,7 @@
         if (s.endedAt) { toast("该对话已彻底结束，不能继续。请开始新对话。"); return; }
         if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
         clearReadonlyMode();
-        location.href = "chat.html?v=45";
+        location.href = "chat.html?v=46";
       });
     }
     if (els.sessionSelect) els.sessionSelect.addEventListener("change", updateControls);
@@ -973,7 +973,7 @@
 
   function init() {
     if ((PAGE === "settings" || PAGE === "chat") && !localStorage.getItem("feynman_user_session")) {
-      location.replace("account.html?force=1&return=" + encodeURIComponent(PAGE));
+      location.replace("account.html?force=1&return=" + encodeURIComponent(PAGE) + "&v=46");
       return;
     }
     bind();

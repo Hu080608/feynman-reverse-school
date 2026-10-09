@@ -7,7 +7,7 @@
   const params = new URLSearchParams(location.search);
   const force = params.get("force") === "1";
   const returnPage = params.get("return") || "settings";
-  const targetUrl = returnPage === "chat" ? "chat.html?v=45" : "index.html?v=45";
+  const targetUrl = returnPage === "chat" ? "chat.html?v=46" : "index.html?v=46";
 
   function toast(text) {
     const el = $("toast");
@@ -83,12 +83,15 @@
     try {
       const res = await B.userMe(token);
       if (!res || !res.ok) throw new Error((res && res.message) || "登录状态失效");
+      if (getToken() !== token) return;
       renderProfile(res.user);
       syncLicenseToApp(res);
       goBackIfNeeded();
     } catch (e) {
-      setToken("");
-      showAuth(false);
+      if (getToken() === token) {
+        setToken("");
+        showAuth(false);
+      }
     }
   }
 
@@ -98,6 +101,7 @@
 
     $("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (!B || typeof B.userLogin !== "function") { msg("loginMsg", "账号服务未加载，请刷新页面后重试。"); return; }
       const username = $("loginUsername").value.trim();
       const password = $("loginPassword").value;
       if (!username || !password) { msg("loginMsg", "请输入用户名和密码。"); return; }
@@ -117,12 +121,17 @@
 
     $("registerForm").addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (!B || typeof B.userRegister !== "function") { msg("registerMsg", "账号服务未加载，请刷新页面后重试。"); return; }
       const username = $("regUsername").value.trim();
       const password = $("regPassword").value;
       const confirm = $("regConfirm").value;
       if (!username || !password || !confirm) { msg("registerMsg", "请填写完整。"); return; }
-      msg("registerMsg", "正在注册...");
+      msg("registerMsg", "正在检查用户名...");
       try {
+        const check = await B.userCheckName(username);
+        if (check && check.ok === false) throw new Error(check.message || "用户名不可用");
+        if (check && check.available === false) { msg("registerMsg", "用户名已存在，请换一个。"); return; }
+        msg("registerMsg", "正在注册...");
         const res = await B.userRegister(username, password, confirm);
         if (!res || !res.ok) throw new Error((res && res.message) || "注册失败");
         setToken(res.token);

@@ -57,6 +57,9 @@
   async function feedback(payload) {
     return postJson("/api/feedback", payload || {});
   }
+  async function userCheckName(username) {
+    return postJson("/api/user/check-name", { username: username });
+  }
   async function userRegister(username, password, confirmPassword) {
     return postJson("/api/user/register", { username: username, password: password, confirmPassword: confirmPassword });
   }
@@ -131,5 +134,5 @@
     return full;
   }
 
-  window.FeynmanBackend = { redeem, login, cleanText, vision, feedback, userRegister, userLogin, userLogout, userMe, userProfile, userPassword, examGrade, status, start, pause, end, chat, baseUrl };
+  window.FeynmanBackend = { redeem, login, cleanText, vision, feedback, userCheckName, userRegister, userLogin, userLogout, userMe, userProfile, userPassword, examGrade, status, start, pause, end, chat, baseUrl };
 })();
