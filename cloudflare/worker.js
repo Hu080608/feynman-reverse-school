@@ -147,7 +147,7 @@ function migrateSession(session, now) {
 }
 
 function settleTime(session, now) {
-  if (!session || !session.timeActiveAt) return false;
+  if (!session || !session.inConversation || !session.timeActiveAt) return false;
   const elapsed = Math.max(0, Number(now) - Number(session.timeActiveAt));
   if (elapsed <= 0) return false;
   session.timeRemainingMs = Math.max(0, Number(session.timeRemainingMs || 0) - elapsed);
@@ -521,6 +521,16 @@ async function handleStatus(request, env) {
   const session = await kvGetJson(env, "session:" + token);
   if (!session) return json({ ok: false, error: "SESSION_NOT_FOUND", message: "登录状态已失效，请重新输入激活码。" }, 404, env);
   const now = Date.now();
+  const inChat = body.inChat !== false;
+  if (!inChat) {
+    refreshSession(session, now, false);
+    session.timeActiveAt = null;
+    session.inConversation = false;
+    session.closing = false;
+    session.updatedAt = now;
+    await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
+    return json({ ok: true, status: statusPayload(session, now) }, 200, env);
+  }
   const changed = refreshSession(session, now, false);
   if (changed) await kvPutJson(env, "session:" + token, session, { expirationTtl: 90 * 86400 });
   return json({ ok: true, status: statusPayload(session, now) }, 200, env);

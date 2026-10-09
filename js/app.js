@@ -95,7 +95,7 @@
   async function refreshStatus(silent) {
     if (!backendReady() || !state.backendToken) { state.backendStatus = null; return; }
     try {
-      const res = await B.status(state.backendToken);
+      const res = await B.status(state.backendToken, PAGE === "chat");
       state.backendStatus = res.status || null;
       state.backendStatusAt = Date.now();
       saveState();
@@ -156,7 +156,7 @@
   }
   function showChat() {
     if (!canEnterChat()) return;
-    location.href = "chat.html?v=39";
+    location.href = "chat.html?v=40";
   }
   function showSettings() {
     clearReadonlyMode();
@@ -185,7 +185,7 @@
     saveState(); renderAll();
     // 历史对话一律只读：不消耗额度，也不能继续发送。
     sessionStorage.setItem("feynman_readonly", "1");
-    location.href = "chat.html?v=39";
+    location.href = "chat.html?v=40";
   }
   function updateControls() {
     const active = backendActive();
@@ -824,7 +824,7 @@
         state.currentSessionId = s.id;
         state.sessions[s.id] = s;
         saveState();
-        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=39"; }
+        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=40"; }
         else { renderAll(); toast("请先激活后再开始对话。"); }
       });
     }
@@ -842,7 +842,7 @@
         if (s.endedAt) { toast("该对话已彻底结束，不能继续。请开始新对话。"); return; }
         if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
         clearReadonlyMode();
-        location.href = "chat.html?v=39";
+        location.href = "chat.html?v=40";
       });
     }
     if (els.sessionSelect) els.sessionSelect.addEventListener("change", updateControls);

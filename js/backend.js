@@ -35,8 +35,8 @@
   async function login(code) {
     return postJson("/api/login", { code: code });
   }
-  async function status(token) {
-    return postJson("/api/status", { token: token });
+  async function status(token, inChat) {
+    return postJson("/api/status", { token: token, inChat: !!inChat });
   }
   async function start(token, priority, conversationId) {
     return postJson("/api/start", { token: token, priority: priority || "time", conversationId: conversationId || "" });
