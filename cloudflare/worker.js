@@ -267,6 +267,108 @@ async function checkRateLimit(env, bucket, id, limit, windowSec) {
   return true;
 }
 
+const USER_SESSION_TTL = 30 * 86400;
+const PASSWORD_ITERATIONS = 80000;
+
+function normalizeUsername(name) {
+  return String(name || "").trim().toLowerCase();
+}
+
+function validateUsername(name) {
+  const v = String(name || "").trim();
+  if (!v) return "用户名不能为空。";
+  if (!/^[A-Za-z0-9_\u4e00-\u9fa5]{3,24}$/.test(v)) return "用户名需为 3-24 位中文、字母、数字或下划线。";
+  return "";
+}
+
+function validatePassword(password) {
+  const v = String(password || "");
+  if (v.length < 8 || v.length > 64) return "密码长度需为 8-64 位。";
+  if (!/[A-Za-z]/.test(v) || !/\d/.test(v)) return "密码必须同时包含字母和数字。";
+  if (/\s/.test(v)) return "密码不能包含空格。";
+  return "";
+}
+
+async function hashPassword(password, saltBytes, iterations) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(String(password)), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({
+    name: "PBKDF2",
+    salt: saltBytes,
+    iterations: iterations || PASSWORD_ITERATIONS,
+    hash: "SHA-256"
+  }, keyMaterial, 256);
+  return bytesToB64url(new Uint8Array(bits));
+}
+
+async function verifyPassword(password, record) {
+  if (!record || !record.salt || !record.hash) return false;
+  const salt = b64urlToBytes(record.salt);
+  const hash = await hashPassword(password, salt, Number(record.iterations || PASSWORD_ITERATIONS));
+  const a = new TextEncoder().encode(hash);
+  const b = new TextEncoder().encode(String(record.hash));
+  return timingSafeEqual(a, b);
+}
+
+function publicUser(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    nickname: user.nickname || user.username,
+    gender: user.gender || "",
+    age: user.age || null,
+    schoolStage: user.schoolStage || "",
+    grade: user.grade || "",
+    subjects: user.subjects || "",
+    goal: user.goal || "",
+    bio: user.bio || "",
+    profileTags: user.profileTags || [],
+    createdAt: user.createdAt,
+    lastLoginAt: user.lastLoginAt || null,
+    loginCount: user.loginCount || 0
+  };
+}
+
+function buildProfileTags(user) {
+  const tags = [];
+  const stageMap = { primary: "小学生", junior: "初中生", senior: "高中生", college: "大学生", other: "其他学段" };
+  if (stageMap[user.schoolStage]) tags.push(stageMap[user.schoolStage]);
+  if (user.age) {
+    const age = Number(user.age);
+    if (age > 0 && age <= 12) tags.push("少年学习者");
+    else if (age <= 18) tags.push("青少年学习者");
+    else if (age <= 30) tags.push("青年学习者");
+    else tags.push("成年学习者");
+  }
+  if (user.subjects) String(user.subjects).split(/[，,、\s]+/).filter(Boolean).slice(0, 5).forEach(x => tags.push(x));
+  if (user.goal) tags.push("目标明确");
+  if (Number(user.loginCount || 0) >= 5) tags.push("活跃学习者");
+  return Array.from(new Set(tags)).slice(0, 8);
+}
+
+async function createUserSession(env, userId, passwordVersion) {
+  const token = crypto.randomUUID() + "." + crypto.randomUUID();
+  const now = Date.now();
+  await kvPutJson(env, "user:session:" + token, {
+    userId: userId,
+    passwordVersion: Number(passwordVersion || 1),
+    createdAt: now,
+    expiresAt: now + USER_SESSION_TTL * 1000
+  }, { expirationTtl: USER_SESSION_TTL });
+  return token;
+}
+
+async function getUserByToken(env, token) {
+  if (!token) return null;
+  const session = await kvGetJson(env, "user:session:" + token);
+  if (!session || !session.userId) return null;
+  if (Number(session.expiresAt || 0) < Date.now()) return null;
+  const user = await kvGetJson(env, "user:id:" + session.userId);
+  if (!user) return null;
+  if (Number(session.passwordVersion || 1) !== Number(user.passwordVersion || 1)) return null;
+  return user;
+}
+
 async function addSystemLog(env, level, event, message, meta) {
   await addRecord(env, "log:", {
     createdAt: Date.now(), level: level || "info", event: event || "system",
@@ -364,6 +466,162 @@ async function handleAdminFeedbackStatus(request, env) {
   await kvPutJson(env, key, item, { expirationTtl: 365 * 86400 });
   await addSystemLog(env, "info", "feedback_status", "反馈状态已更新", { id: id, status: status });
   return json({ ok: true, item: item }, 200, env);
+}
+
+async function handleUserRegister(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const ip = request.headers.get("cf-connecting-ip") || "unknown";
+  if (!(await checkRateLimit(env, "user_register", ip, 10, 3600))) {
+    return json({ ok: false, error: "RATE_LIMITED", message: "注册太频繁，请稍后再试。" }, 429, env);
+  }
+  const username = String(body.username || "").trim();
+  const password = String(body.password || "");
+  const confirm = String(body.confirmPassword || "");
+  const usernameError = validateUsername(username);
+  if (usernameError) return json({ ok: false, error: "INVALID_USERNAME", message: usernameError }, 400, env);
+  const passwordError = validatePassword(password);
+  if (passwordError) return json({ ok: false, error: "WEAK_PASSWORD", message: passwordError }, 400, env);
+  if (password !== confirm) return json({ ok: false, error: "PASSWORD_MISMATCH", message: "两次输入的密码不一致。" }, 400, env);
+  const normalized = normalizeUsername(username);
+  const existingId = await env.LICENSE_KV.get("user:name:" + normalized);
+  if (existingId) return json({ ok: false, error: "USERNAME_EXISTS", message: "用户名已存在。" }, 409, env);
+  const now = Date.now();
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const passwordRecord = {
+    algo: "PBKDF2-SHA256",
+    iterations: PASSWORD_ITERATIONS,
+    salt: bytesToB64url(saltBytes),
+    hash: await hashPassword(password, saltBytes, PASSWORD_ITERATIONS)
+  };
+  const userId = crypto.randomUUID();
+  const user = {
+    id: userId,
+    username: username,
+    usernameLower: normalized,
+    password: passwordRecord,
+    passwordVersion: 1,
+    nickname: username,
+    gender: "",
+    age: null,
+    schoolStage: "",
+    grade: "",
+    subjects: "",
+    goal: "",
+    bio: "",
+    profileTags: [],
+    createdAt: now,
+    updatedAt: now,
+    lastLoginAt: now,
+    loginCount: 1
+  };
+  user.profileTags = buildProfileTags(user);
+  await kvPutJson(env, "user:id:" + userId, user, { expirationTtl: 365 * 86400 });
+  await env.LICENSE_KV.put("user:name:" + normalized, userId, { expirationTtl: 365 * 86400 });
+  const token = await createUserSession(env, userId, user.passwordVersion);
+  await addSystemLog(env, "info", "user_register", "新用户注册", { userId: userId, username: username });
+  return json({ ok: true, token: token, user: publicUser(user) }, 200, env);
+}
+
+async function handleUserLogin(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const ip = request.headers.get("cf-connecting-ip") || "unknown";
+  if (!(await checkRateLimit(env, "user_login", ip, 30, 300))) {
+    return json({ ok: false, error: "RATE_LIMITED", message: "登录尝试太频繁，请稍后再试。" }, 429, env);
+  }
+  const username = String(body.username || "").trim();
+  const password = String(body.password || "");
+  if (!username || !password) return json({ ok: false, error: "EMPTY_INPUT", message: "用户名和密码不能为空。" }, 400, env);
+  const userId = await env.LICENSE_KV.get("user:name:" + normalizeUsername(username));
+  if (!userId) return json({ ok: false, error: "ACCOUNT_NOT_FOUND", message: "账号不存在。" }, 404, env);
+  const user = await kvGetJson(env, "user:id:" + userId);
+  if (!user) return json({ ok: false, error: "ACCOUNT_NOT_FOUND", message: "账号不存在。" }, 404, env);
+  if (!(await verifyPassword(password, user.password))) {
+    return json({ ok: false, error: "WRONG_PASSWORD", message: "密码错误。" }, 401, env);
+  }
+  const now = Date.now();
+  user.lastLoginAt = now;
+  user.loginCount = Number(user.loginCount || 0) + 1;
+  user.updatedAt = now;
+  user.profileTags = buildProfileTags(user);
+  await kvPutJson(env, "user:id:" + user.id, user, { expirationTtl: 365 * 86400 });
+  const token = await createUserSession(env, user.id, user.passwordVersion);
+  await addSystemLog(env, "info", "user_login", "用户登录", { userId: user.id, username: user.username });
+  return json({ ok: true, token: token, user: publicUser(user) }, 200, env);
+}
+
+async function handleUserLogout(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { body = {}; }
+  const token = String(body.token || "");
+  if (token) await env.LICENSE_KV.delete("user:session:" + token);
+  return json({ ok: true }, 200, env);
+}
+
+async function handleUserMe(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { body = {}; }
+  const user = await getUserByToken(env, String(body.token || ""));
+  if (!user) return json({ ok: false, error: "UNAUTHORIZED", message: "登录状态已失效，请重新登录。" }, 401, env);
+  return json({ ok: true, user: publicUser(user) }, 200, env);
+}
+
+async function handleUserProfileUpdate(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const user = await getUserByToken(env, String(body.token || ""));
+  if (!user) return json({ ok: false, error: "UNAUTHORIZED", message: "登录状态已失效，请重新登录。" }, 401, env);
+  const nickname = String(body.nickname || "").trim().slice(0, 24);
+  const gender = ["", "male", "female", "other"].includes(String(body.gender || "")) ? String(body.gender || "") : "";
+  const ageRaw = body.age === "" || body.age == null ? null : Number(body.age);
+  const age = ageRaw == null ? null : Math.max(1, Math.min(120, Math.round(ageRaw)));
+  const schoolStage = ["", "primary", "junior", "senior", "college", "other"].includes(String(body.schoolStage || "")) ? String(body.schoolStage || "") : "";
+  const grade = String(body.grade || "").trim().slice(0, 20);
+  const subjects = String(body.subjects || "").trim().slice(0, 100);
+  const goal = String(body.goal || "").trim().slice(0, 120);
+  const bio = String(body.bio || "").trim().slice(0, 300);
+  user.nickname = nickname || user.username;
+  user.gender = gender;
+  user.age = age;
+  user.schoolStage = schoolStage;
+  user.grade = grade;
+  user.subjects = subjects;
+  user.goal = goal;
+  user.bio = bio;
+  user.updatedAt = Date.now();
+  user.profileTags = buildProfileTags(user);
+  await kvPutJson(env, "user:id:" + user.id, user, { expirationTtl: 365 * 86400 });
+  return json({ ok: true, user: publicUser(user) }, 200, env);
+}
+
+async function handleUserChangePassword(request, env) {
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ ok: false, error: "INVALID_JSON" }, 400, env); }
+  const user = await getUserByToken(env, String(body.token || ""));
+  if (!user) return json({ ok: false, error: "UNAUTHORIZED", message: "登录状态已失效，请重新登录。" }, 401, env);
+  const oldPassword = String(body.oldPassword || "");
+  const newPassword = String(body.newPassword || "");
+  const confirm = String(body.confirmPassword || "");
+  if (!(await verifyPassword(oldPassword, user.password))) {
+    return json({ ok: false, error: "WRONG_PASSWORD", message: "原密码错误。" }, 401, env);
+  }
+  const error = validatePassword(newPassword);
+  if (error) return json({ ok: false, error: "WEAK_PASSWORD", message: error }, 400, env);
+  if (newPassword !== confirm) return json({ ok: false, error: "PASSWORD_MISMATCH", message: "两次输入的新密码不一致。" }, 400, env);
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  user.password = {
+    algo: "PBKDF2-SHA256",
+    iterations: PASSWORD_ITERATIONS,
+    salt: bytesToB64url(saltBytes),
+    hash: await hashPassword(newPassword, saltBytes, PASSWORD_ITERATIONS)
+  };
+  user.passwordVersion = Number(user.passwordVersion || 1) + 1;
+  user.updatedAt = Date.now();
+  await kvPutJson(env, "user:id:" + user.id, user, { expirationTtl: 365 * 86400 });
+  const token = await createUserSession(env, user.id, user.passwordVersion);
+  await addSystemLog(env, "info", "user_password", "用户修改密码", { userId: user.id });
+  return json({ ok: true, token: token, user: publicUser(user) }, 200, env);
 }
 
 async function handleAdminLogin(request, env) {
@@ -904,6 +1162,12 @@ async function handleRequest(request, env) {
   if (path === "/api/health" && request.method === "GET") {
     return json({ ok: true, service: "feynman-reverse-school-api", time: Date.now() }, 200, env);
   }
+  if (path === "/api/user/register" && request.method === "POST") return handleUserRegister(request, env);
+  if (path === "/api/user/login" && request.method === "POST") return handleUserLogin(request, env);
+  if (path === "/api/user/logout" && request.method === "POST") return handleUserLogout(request, env);
+  if (path === "/api/user/me" && request.method === "POST") return handleUserMe(request, env);
+  if (path === "/api/user/profile" && request.method === "POST") return handleUserProfileUpdate(request, env);
+  if (path === "/api/user/password" && request.method === "POST") return handleUserChangePassword(request, env);
   if (path === "/api/redeem" && request.method === "POST") return handleRedeem(request, env);
   if (path === "/api/status" && request.method === "POST") return handleStatus(request, env);
   if (path === "/api/pause" && request.method === "POST") return handlePause(request, env);

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://api.feynman-hsj.top http://127.0.0.1:8787 http://localhost:8787; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>用户中心｜费曼反向学校</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/styles.css?v=42" />
+  <link rel="stylesheet" href="css/responsive.css?v=42" />
+  <link rel="stylesheet" href="css/account.css?v=1" />
+</head>
+<body class="page-account">
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="assets/logo.svg" alt="费曼反向学校" />
+      <div><h1>费曼反向学校</h1><p>用户中心</p></div>
+    </div>
+    <a class="btn small" href="index.html">返回设置</a>
+  </header>
+
+  <main class="account-page">
+    <section id="authView" class="card account-card">
+      <h2>用户账号</h2>
+      <p class="hint">注册后可以保存个人资料和人物画像；资料只属于你自己的账号。</p>
+      <div class="account-tabs">
+        <button id="tabLogin" class="account-tab active" type="button">登录</button>
+        <button id="tabRegister" class="account-tab" type="button">注册</button>
+      </div>
+
+      <form id="loginForm">
+        <label for="loginUsername">用户名</label>
+        <input id="loginUsername" maxlength="24" autocomplete="username" placeholder="请输入用户名" />
+        <label for="loginPassword">密码</label>
+        <input id="loginPassword" type="password" maxlength="64" autocomplete="current-password" placeholder="请输入密码" />
+        <p id="loginMsg" class="hint"></p>
+        <button class="btn primary full" type="submit">登录</button>
+      </form>
+
+      <form id="registerForm" class="hidden">
+        <label for="regUsername">用户名</label>
+        <input id="regUsername" maxlength="24" autocomplete="username" placeholder="3-24 位中文、字母、数字或下划线" />
+        <label for="regPassword">密码</label>
+        <input id="regPassword" type="password" maxlength="64" autocomplete="new-password" placeholder="至少 8 位，必须包含字母和数字" />
+        <label for="regConfirm">确认密码</label>
+        <input id="regConfirm" type="password" maxlength="64" autocomplete="new-password" placeholder="再次输入密码" />
+        <p id="registerMsg" class="hint"></p>
+        <button class="btn primary full" type="submit">注册</button>
+      </form>
+    </section>
+
+    <section id="profileView" class="card account-card hidden">
+      <div class="account-head">
+        <div>
+          <h2 id="profileTitle">我的资料</h2>
+          <p class="hint" id="profileSubtitle">登录成功</p>
+        </div>
+        <button id="logoutBtn" class="btn small danger" type="button">退出登录</button>
+      </div>
+
+      <div id="profileTags" class="profile-tags"></div>
+
+      <form id="profileForm">
+        <label for="pNickname">昵称</label>
+        <input id="pNickname" maxlength="24" placeholder="怎样称呼你" />
+        <label for="pGender">性别</label>
+        <select id="pGender">
+          <option value="">不填写</option>
+          <option value="male">男</option>
+          <option value="female">女</option>
+          <option value="other">其他</option>
+        </select>
+        <label for="pAge">年龄</label>
+        <input id="pAge" type="number" min="1" max="120" placeholder="例如 18" />
+        <label for="pStage">学段</label>
+        <select id="pStage">
+          <option value="">不填写</option>
+          <option value="primary">小学</option>
+          <option value="junior">初中</option>
+          <option value="senior">高中</option>
+          <option value="college">大学</option>
+          <option value="other">其他</option>
+        </select>
+        <label for="pGrade">年级</label>
+        <input id="pGrade" maxlength="20" placeholder="例如 高二、大一" />
+        <label for="pSubjects">关注学科</label>
+        <input id="pSubjects" maxlength="100" placeholder="例如 数学、物理、计算机" />
+        <label for="pGoal">学习目标</label>
+        <input id="pGoal" maxlength="120" placeholder="例如 考研数学、雅思、转行编程" />
+        <label for="pBio">个人简介</label>
+        <textarea id="pBio" rows="3" maxlength="300" placeholder="简单介绍一下自己"></textarea>
+        <p id="profileMsg" class="hint"></p>
+        <button class="btn primary full" type="submit">保存资料</button>
+      </form>
+
+      <details class="account-password">
+        <summary>修改密码</summary>
+        <form id="passwordForm">
+          <label for="oldPassword">原密码</label>
+          <input id="oldPassword" type="password" maxlength="64" autocomplete="current-password" />
+          <label for="newPassword">新密码</label>
+          <input id="newPassword" type="password" maxlength="64" autocomplete="new-password" placeholder="至少 8 位，包含字母和数字" />
+          <label for="newConfirm">确认新密码</label>
+          <input id="newConfirm" type="password" maxlength="64" autocomplete="new-password" />
+          <p id="passwordMsg" class="hint"></p>
+          <button class="btn primary full" type="submit">确认修改</button>
+        </form>
+      </details>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="js/config.js" defer></script>
+  <script src="js/backend.js" defer></script>
+  <script src="js/account.js" defer></script>
+</body>
+</html>

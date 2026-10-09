@@ -57,6 +57,24 @@
   async function feedback(payload) {
     return postJson("/api/feedback", payload || {});
   }
+  async function userRegister(username, password, confirmPassword) {
+    return postJson("/api/user/register", { username: username, password: password, confirmPassword: confirmPassword });
+  }
+  async function userLogin(username, password) {
+    return postJson("/api/user/login", { username: username, password: password });
+  }
+  async function userLogout(token) {
+    return postJson("/api/user/logout", { token: token });
+  }
+  async function userMe(token) {
+    return postJson("/api/user/me", { token: token });
+  }
+  async function userProfile(token, profile) {
+    return postJson("/api/user/profile", Object.assign({ token: token }, profile || {}));
+  }
+  async function userPassword(token, oldPassword, newPassword, confirmPassword) {
+    return postJson("/api/user/password", { token: token, oldPassword: oldPassword, newPassword: newPassword, confirmPassword: confirmPassword });
+  }
 
   async function chat(token, payload, onDelta) {
     const url = baseUrl() + "/api/chat";
@@ -110,5 +128,5 @@
     return full;
   }
 
-  window.FeynmanBackend = { redeem, login, cleanText, vision, feedback, status, start, pause, end, chat, baseUrl };
+  window.FeynmanBackend = { redeem, login, cleanText, vision, feedback, userRegister, userLogin, userLogout, userMe, userProfile, userPassword, status, start, pause, end, chat, baseUrl };
 })();
