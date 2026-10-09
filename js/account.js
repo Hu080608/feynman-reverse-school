@@ -7,7 +7,7 @@
   const params = new URLSearchParams(location.search);
   const force = params.get("force") === "1";
   const returnPage = params.get("return") || "settings";
-  const targetUrl = returnPage === "chat" ? "chat.html?v=50" : "index.html?v=50";
+  const targetUrl = returnPage === "chat" ? "chat.html?v=51" : "index.html?v=51";
 
   function toast(text) {
     const el = $("toast");
