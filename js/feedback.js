@@ -15,6 +15,10 @@
     toast._timer = setTimeout(() => el.classList.add("hidden"), 2600);
   }
 
+  function readUserToken() {
+    return localStorage.getItem("feynman_user_session") || "";
+  }
+
   function readToken() {
     try {
       const raw = localStorage.getItem(storageKey);
@@ -107,6 +111,7 @@
       try {
         const res = await B.feedback({
           token: readToken(),
+          userToken: readUserToken(),
           content: text,
           contact: String($("feedbackContact") && $("feedbackContact").value || "").trim(),
           image: imageData,

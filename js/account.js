@@ -1,5 +1,6 @@
 (function () {
   const B = window.FeynmanBackend;
+  const cfg = window.APP_CONFIG || {};
   const $ = id => document.getElementById(id);
   const TOKEN_KEY = "feynman_user_session";
   let currentUser = null;
@@ -17,6 +18,21 @@
   function msg(id, text, ok) {
     const el = $(id);
     if (el) { el.textContent = text || ""; el.style.color = ok ? "#9ef0b5" : "#fca5a5"; }
+  }
+
+  function syncLicenseToApp(res) {
+    if (!res) return;
+    const key = (cfg.APP && cfg.APP.storageKey) || "feynman_reverse_school_v1";
+    try {
+      const raw = localStorage.getItem(key);
+      const st = raw ? JSON.parse(raw) : {};
+      if (res.licenseToken) {
+        st.backendToken = res.licenseToken;
+        st.backendStatus = res.licenseStatus || null;
+        st.backendStatusAt = Date.now();
+        localStorage.setItem(key, JSON.stringify(st));
+      }
+    } catch (e) {}
   }
 
   function showAuth(showRegister) {
@@ -56,6 +72,7 @@
       const res = await B.userMe(token);
       if (!res || !res.ok) throw new Error((res && res.message) || "登录状态失效");
       renderProfile(res.user);
+      syncLicenseToApp(res);
     } catch (e) {
       setToken("");
       showAuth(false);
@@ -77,7 +94,8 @@
         if (!res || !res.ok) throw new Error((res && res.message) || "登录失败");
         setToken(res.token);
         renderProfile(res.user);
-        toast("登录成功");
+        syncLicenseToApp(res);
+        toast(res.licenseToken ? "登录成功，学习额度已同步" : "登录成功");
       } catch (err) {
         msg("loginMsg", err.message || "登录失败");
       }
@@ -95,6 +113,7 @@
         if (!res || !res.ok) throw new Error((res && res.message) || "注册失败");
         setToken(res.token);
         renderProfile(res.user);
+        syncLicenseToApp(res);
         toast("注册成功");
       } catch (err) {
         msg("registerMsg", err.message || "注册失败");

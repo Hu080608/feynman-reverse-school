@@ -413,6 +413,8 @@ async function handleFeedbackSubmit(request, env) {
   const token = String(body.token || "");
   let session = null;
   if (token) session = await kvGetJson(env, "session:" + token);
+  const userToken = String(body.userToken || "");
+  const user = userToken ? await getUserByToken(env, userToken) : null;
   const now = Date.now();
   const id = crypto.randomUUID();
   const item = {
@@ -426,6 +428,8 @@ async function handleFeedbackSubmit(request, env) {
     updatedAt: now,
     tokenTail: token ? token.slice(-8) : "",
     clientId: session ? (session.clientId || "") : "",
+    userId: user ? user.id : "",
+    username: user ? user.username : "",
     ip: ip,
     userAgent: String(request.headers.get("user-agent") || "").slice(0, 200)
   };
@@ -466,6 +470,20 @@ async function handleAdminFeedbackStatus(request, env) {
   await kvPutJson(env, key, item, { expirationTtl: 365 * 86400 });
   await addSystemLog(env, "info", "feedback_status", "反馈状态已更新", { id: id, status: status });
   return json({ ok: true, item: item }, 200, env);
+}
+
+async function bindLicenseToUser(env, userToken, licenseToken) {
+  const user = await getUserByToken(env, userToken);
+  if (!user) return null;
+  await env.LICENSE_KV.put("user:license:" + user.id, licenseToken, { expirationTtl: 90 * 86400 });
+  return user.id;
+}
+
+async function getUserLicensePayload(env, userId) {
+  const licenseToken = await env.LICENSE_KV.get("user:license:" + userId);
+  if (!licenseToken) return { licenseToken: "", licenseStatus: null };
+  const session = await kvGetJson(env, "session:" + licenseToken);
+  return { licenseToken: licenseToken, licenseStatus: session ? statusPayload(session, Date.now()) : null };
 }
 
 async function handleUserRegister(request, env) {
@@ -520,7 +538,7 @@ async function handleUserRegister(request, env) {
   await env.LICENSE_KV.put("user:name:" + normalized, userId, { expirationTtl: 365 * 86400 });
   const token = await createUserSession(env, userId, user.passwordVersion);
   await addSystemLog(env, "info", "user_register", "新用户注册", { userId: userId, username: username });
-  return json({ ok: true, token: token, user: publicUser(user) }, 200, env);
+  return json({ ok: true, token: token, user: publicUser(user), licenseToken: "", licenseStatus: null }, 200, env);
 }
 
 async function handleUserLogin(request, env) {
@@ -547,8 +565,9 @@ async function handleUserLogin(request, env) {
   user.profileTags = buildProfileTags(user);
   await kvPutJson(env, "user:id:" + user.id, user, { expirationTtl: 365 * 86400 });
   const token = await createUserSession(env, user.id, user.passwordVersion);
+  const license = await getUserLicensePayload(env, user.id);
   await addSystemLog(env, "info", "user_login", "用户登录", { userId: user.id, username: user.username });
-  return json({ ok: true, token: token, user: publicUser(user) }, 200, env);
+  return json({ ok: true, token: token, user: publicUser(user), licenseToken: license.licenseToken, licenseStatus: license.licenseStatus }, 200, env);
 }
 
 async function handleUserLogout(request, env) {
@@ -564,7 +583,8 @@ async function handleUserMe(request, env) {
   try { body = await request.json(); } catch (e) { body = {}; }
   const user = await getUserByToken(env, String(body.token || ""));
   if (!user) return json({ ok: false, error: "UNAUTHORIZED", message: "登录状态已失效，请重新登录。" }, 401, env);
-  return json({ ok: true, user: publicUser(user) }, 200, env);
+  const license = await getUserLicensePayload(env, user.id);
+  return json({ ok: true, user: publicUser(user), licenseToken: license.licenseToken, licenseStatus: license.licenseStatus }, 200, env);
 }
 
 async function handleUserProfileUpdate(request, env) {
@@ -738,6 +758,8 @@ async function handleRedeem(request, env) {
   refreshSession(session, now, session.inConversation);
   await kvPutJson(env, sessionKey, session, { expirationTtl: 90 * 86400 });
   await env.LICENSE_KV.put("code-session:" + payload.jti, session.token, { expirationTtl: 90 * 86400 });
+  const userToken = String(body.userToken || "");
+  if (userToken) await bindLicenseToUser(env, userToken, session.token);
   if (clientId) {
     await env.LICENSE_KV.put("client:" + clientId, session.token, { expirationTtl: 90 * 86400 });
   }

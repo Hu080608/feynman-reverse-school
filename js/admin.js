@@ -183,13 +183,14 @@
       return "<tr>" +
         "<td>" + esc(fmtTime(f.createdAt)) + "</td>" +
         "<td>" + esc(src) + "</td>" +
+        "<td>" + esc(f.username || "-") + "</td>" +
         "<td><span class='feedback-content'>" + esc(f.content || "") + "</span></td>" +
         "<td>" + esc(f.contact || "-") + "</td>" +
         "<td>" + image + "</td>" +
         "<td>" + statusCell + "</td>" +
         "</tr>";
     }).join("");
-    $("feedbackTable").querySelector("tbody").innerHTML = feedbackRows || '<tr><td colspan="6">暂无反馈</td></tr>';
+    $("feedbackTable").querySelector("tbody").innerHTML = feedbackRows || '<tr><td colspan="7">暂无反馈</td></tr>';
   }
 
   function exportCsv(name, rows, headers) {
@@ -217,7 +218,7 @@
     $("feedbackStatusFilter").addEventListener("change", refreshFeedback);
     $("feedbackSort").addEventListener("change", refreshFeedback);
     $("loadMoreFeedback").addEventListener("click", () => loadMore("feedback", "/api/admin/feedback", "feedback"));
-    $("exportFeedback").addEventListener("click", () => exportCsv("feedback", cache.feedback, ["createdAt", "source", "content", "contact", "status"]));
+    $("exportFeedback").addEventListener("click", () => exportCsv("feedback", cache.feedback, ["createdAt", "source", "username", "content", "contact", "status"]));
     $("feedbackTable").addEventListener("click", (e) => {
       const btn = e.target.closest(".view-feedback-image");
       if (!btn) return;

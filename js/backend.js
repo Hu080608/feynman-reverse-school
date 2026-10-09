@@ -29,8 +29,8 @@
     return data;
   }
 
-  async function redeem(code, clientId) {
-    return postJson("/api/redeem", { code: code, clientId: clientId });
+  async function redeem(code, clientId, userToken) {
+    return postJson("/api/redeem", { code: code, clientId: clientId, userToken: userToken || "" });
   }
   async function login(code) {
     return postJson("/api/login", { code: code });
