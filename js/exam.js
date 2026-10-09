@@ -33,7 +33,7 @@
     const s = getCurrentSession(st);
     const kp = s && s.knowledgePoint ? s.knowledgePoint : "";
     $("examKnowledge").value = kp || "";
-    $("skipExamBtn").addEventListener("click", () => { location.href = "chat.html?v=44"; });
+    $("skipExamBtn").addEventListener("click", () => { location.href = "chat.html?v=45"; });
     $("examForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       if (!st.backendToken) { msg("请先进入对话页，获取学习额度后再参加考核。"); return; }
