@@ -451,7 +451,7 @@ body.page-settings .settings-page.settings-v2 > details{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:16px;
-  align-items:stretch;
+  align-items:start;
 }
 .settings-grid .card{
   height:100%;
