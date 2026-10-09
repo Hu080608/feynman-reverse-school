@@ -156,7 +156,7 @@
   }
   function showChat() {
     if (!canEnterChat()) return;
-    location.href = "chat.html?v=48";
+    location.href = "chat.html?v=49";
   }
   function bindSettingsTabs() {
     const tabs = Array.from(document.querySelectorAll("[data-settings-tab]"));
@@ -200,7 +200,7 @@
     saveState(); renderAll();
     // 历史对话一律只读：不消耗额度，也不能继续发送。
     sessionStorage.setItem("feynman_readonly", "1");
-    location.href = "chat.html?v=48";
+    location.href = "chat.html?v=49";
   }
   function updateControls() {
     const active = backendActive();
@@ -557,13 +557,14 @@
     if (!els.learningGoal) return;
     let profile = null;
     try { profile = JSON.parse(localStorage.getItem("feynman_user_profile") || "null"); } catch (e) {}
-    if (!profile) return;
-    const stageMap = { primary: "小学生", junior: "初中生", senior: "高中生", college: "大学生", other: "学习者" };
-    const stage = stageMap[profile.schoolStage] || "学习者";
-    const subject = String(profile.subjects || "").split(/[，,、\s]+/).filter(Boolean)[0] || "";
-    const goal = profile.learningGoalSuggestion || (subject
-      ? "我是" + stage + "，我要掌握" + subject + "的底层逻辑和基本原理。"
-      : "我是" + stage + "，我要把学到的东西真正讲清楚、用起来。");
+    let goal = "学会并能讲清楚。";
+    if (profile) {
+      const stageMap = { primary: "小学生", junior: "初中生", senior: "高中生", college: "大学生", other: "学习者" };
+      const stage = stageMap[profile.schoolStage] || "学习者";
+      goal = profile.goal
+        ? "我是" + stage + "，我的目标是" + profile.goal + "。"
+        : "我是" + stage + "，我要把学到的东西真正讲清楚、用起来。";
+    }
     els.learningGoal.value = goal;
     els.learningGoal.readOnly = true;
     els.learningGoal.title = "根据账号人物画像自动生成";
@@ -859,7 +860,7 @@
         state.currentSessionId = s.id;
         state.sessions[s.id] = s;
         saveState();
-        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=48"; }
+        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=49"; }
         else { renderAll(); toast("请先激活后再开始对话。"); }
       });
     }
@@ -877,7 +878,7 @@
         if (s.endedAt) { toast("该对话已彻底结束，不能继续。请开始新对话。"); return; }
         if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
         clearReadonlyMode();
-        location.href = "chat.html?v=48";
+        location.href = "chat.html?v=49";
       });
     }
     if (els.sessionSelect) els.sessionSelect.addEventListener("change", updateControls);
@@ -975,7 +976,7 @@
 
   function init() {
     if ((PAGE === "settings" || PAGE === "chat") && !localStorage.getItem("feynman_user_session")) {
-      location.replace("account.html?force=1&return=" + encodeURIComponent(PAGE) + "&v=48");
+      location.replace("account.html?force=1&return=" + encodeURIComponent(PAGE) + "&v=49");
       return;
     }
     bind();

@@ -319,7 +319,6 @@ function publicUser(user) {
     age: user.age || null,
     schoolStage: user.schoolStage || "",
     grade: user.grade || "",
-    subjects: user.subjects || "",
     goal: user.goal || "",
     bio: user.bio || "",
     profileTags: user.profileTags || [],
@@ -341,7 +340,6 @@ function buildProfileTags(user) {
     else if (age <= 30) tags.push("青年学习者");
     else tags.push("成年学习者");
   }
-  if (user.subjects) String(user.subjects).split(/[，,、\s]+/).filter(Boolean).slice(0, 5).forEach(x => tags.push(x));
   if (user.goal) tags.push("目标明确");
   if (Number(user.loginCount || 0) >= 5) tags.push("活跃学习者");
   return Array.from(new Set(tags)).slice(0, 8);
@@ -535,7 +533,6 @@ async function handleUserRegister(request, env) {
     age: null,
     schoolStage: "",
     grade: "",
-    subjects: "",
     goal: "",
     bio: "",
     profileTags: [],
@@ -610,7 +607,6 @@ async function handleUserProfileUpdate(request, env) {
   const age = ageRaw == null ? null : Math.max(1, Math.min(120, Math.round(ageRaw)));
   const schoolStage = ["", "primary", "junior", "senior", "college", "other"].includes(String(body.schoolStage || "")) ? String(body.schoolStage || "") : "";
   const grade = String(body.grade || "").trim().slice(0, 20);
-  const subjects = String(body.subjects || "").trim().slice(0, 100);
   const goal = String(body.goal || "").trim().slice(0, 120);
   const bio = String(body.bio || "").trim().slice(0, 300);
   user.nickname = nickname || user.username;
@@ -618,10 +614,9 @@ async function handleUserProfileUpdate(request, env) {
   user.age = age;
   user.schoolStage = schoolStage;
   user.grade = grade;
-  user.subjects = subjects;
   user.goal = goal;
   user.bio = bio;
-  user.profileCompleted = !!(user.age && user.schoolStage && user.subjects && user.goal);
+  user.profileCompleted = !!(user.age && user.schoolStage);
   user.updatedAt = Date.now();
   user.profileTags = buildProfileTags(user);
   await kvPutJson(env, "user:id:" + user.id, user, { expirationTtl: 365 * 86400 });
@@ -894,6 +889,12 @@ function buildSystemPrompt(knowledgePoint, learningGoal, start) {
 【当前知识点】${kp}
 【用户学习目标】${goal}
 ${start ? "【本次任务】请先向讲解者打招呼，并围绕当前知识点提出第一个问题，不要直接讲课。\n" : ""}
+【准确性要求】
+1. 严禁编造知识点、公式、结论或出处；不确定时必须明确说“我不确定/需要查证”，不能假装确定。
+2. 用户讲解出现错误、混淆或遗漏时，必须先明确指出错误并给出正确说法，再以学生身份继续追问，不能为了继续互动而附和行为。
+3. 对定义、条件、公式、例子必须核对准确性；如果用户举例不成立，要指出并给出正确反例。
+4. 判定通过前，必须确认核心知识没有明显错误；宁可继续追问，也不能让错误知识通过。
+
 【你必须遵守的行为】
 1. 先简短回应，再主动追问一个暴露理解盲点的问题。每次回复最多只问一个问题，不要连续抛出多个问题；等用户回答后再问下一个。
 2. 故意犯一个符合该知识点的典型错误（混淆概念、用错公式、举反例、只记结论等），让用户纠正你。
@@ -1010,7 +1011,7 @@ async function handleChat(request, env) {
     body: JSON.stringify({
       model: env.DEEPSEEK_MODEL || "deepseek-chat",
       messages,
-      temperature: 0.85,
+      temperature: 0.55,
       max_tokens: 900,
       stream: true
     })

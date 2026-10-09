@@ -7,7 +7,7 @@
   const params = new URLSearchParams(location.search);
   const force = params.get("force") === "1";
   const returnPage = params.get("return") || "settings";
-  const targetUrl = returnPage === "chat" ? "chat.html?v=48" : "index.html?v=48";
+  const targetUrl = returnPage === "chat" ? "chat.html?v=49" : "index.html?v=49";
 
   function toast(text) {
     const el = $("toast");
@@ -71,7 +71,6 @@
     $("pAge").value = user.age == null ? "" : user.age;
     $("pStage").value = user.schoolStage || "";
     $("pGrade").value = user.grade || "";
-    $("pSubjects").value = user.subjects || "";
     $("pGoal").value = user.goal || "";
     $("pBio").value = user.bio || "";
   }
@@ -167,10 +166,8 @@
       if (!token) { showAuth(false); return; }
       const age = $("pAge").value.trim();
       const stage = $("pStage").value;
-      const subjects = $("pSubjects").value.trim();
-      const goal = $("pGoal").value.trim();
-      if (!age || !stage || !subjects || !goal) {
-        msg("profileMsg", "请先填写年龄、学段、关注学科和学习目标。");
+      if (!age || !stage) {
+        msg("profileMsg", "请先填写年龄和学段。");
         return;
       }
       msg("profileMsg", "正在保存...");
@@ -181,7 +178,6 @@
           age: $("pAge").value,
           schoolStage: $("pStage").value,
           grade: $("pGrade").value.trim(),
-          subjects: $("pSubjects").value.trim(),
           goal: $("pGoal").value.trim(),
           bio: $("pBio").value.trim()
         });
