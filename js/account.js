@@ -7,7 +7,7 @@
   const params = new URLSearchParams(location.search);
   const force = params.get("force") === "1";
   const returnPage = params.get("return") || "settings";
-  const targetUrl = returnPage === "chat" ? "chat.html?v=49" : "index.html?v=49";
+  const targetUrl = returnPage === "chat" ? "chat.html?v=50" : "index.html?v=50";
 
   function toast(text) {
     const el = $("toast");
@@ -68,10 +68,9 @@
     $("profileTags").innerHTML = (user.profileTags || []).map(t => '<span class="profile-tag">' + escapeHtml(t) + "</span>").join("") || '<span class="profile-tag">还没有画像标签</span>';
     $("pNickname").value = user.nickname || "";
     $("pGender").value = user.gender || "";
-    $("pAge").value = user.age == null ? "" : user.age;
     $("pStage").value = user.schoolStage || "";
     $("pGrade").value = user.grade || "";
-    $("pGoal").value = user.goal || "";
+    $("pGoal").value = user.goal || "学会并能讲清楚";
     $("pBio").value = user.bio || "";
   }
 
@@ -164,10 +163,9 @@
       e.preventDefault();
       const token = getToken();
       if (!token) { showAuth(false); return; }
-      const age = $("pAge").value.trim();
       const stage = $("pStage").value;
-      if (!age || !stage) {
-        msg("profileMsg", "请先填写年龄和学段。");
+      if (!stage) {
+        msg("profileMsg", "请先选择学段。");
         return;
       }
       msg("profileMsg", "正在保存...");
@@ -175,7 +173,6 @@
         const res = await B.userProfile(token, {
           nickname: $("pNickname").value.trim(),
           gender: $("pGender").value,
-          age: $("pAge").value,
           schoolStage: $("pStage").value,
           grade: $("pGrade").value.trim(),
           goal: $("pGoal").value.trim(),

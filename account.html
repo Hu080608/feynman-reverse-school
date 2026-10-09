@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>用户中心｜费曼反向学校</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="css/styles.css?v=49" />
-  <link rel="stylesheet" href="css/responsive.css?v=49" />
+  <link rel="stylesheet" href="css/styles.css?v=50" />
+  <link rel="stylesheet" href="css/responsive.css?v=50" />
   <link rel="stylesheet" href="css/account.css?v=1" />
 </head>
 <body class="page-account">
@@ -60,7 +60,7 @@
     </section>
 
     <section id="profileView" class="card account-card hidden">
-      <p id="profileNotice" class="hint hidden" style="color:#fbd38d;">请先完善年龄和学段，保存后会自动返回。</p>
+      <p id="profileNotice" class="hint hidden" style="color:#fbd38d;">请先填写学段，保存后会自动返回。</p>
       <div class="account-head">
         <div>
           <h2 id="profileTitle">我的资料</h2>
@@ -81,9 +81,7 @@
           <option value="female">女</option>
           <option value="other">其他</option>
         </select>
-        <label for="pAge">年龄</label>
-        <input id="pAge" type="number" min="1" max="120" placeholder="例如 18" />
-        <label for="pStage">学段</label>
+        <label for="pStage">学段 <span class="required">*</span></label>
         <select id="pStage">
           <option value="">不填写</option>
           <option value="primary">小学</option>
@@ -94,8 +92,8 @@
         </select>
         <label for="pGrade">年级</label>
         <input id="pGrade" maxlength="20" placeholder="例如 高二、大一" />
-        <label for="pGoal">学习目标</label>
-        <input id="pGoal" maxlength="120" placeholder="例如 考研数学、雅思、转行编程" />
+        <label for="pGoal">学习目标（可选，默认：学会并能讲清楚）</label>
+        <input id="pGoal" maxlength="120" placeholder="不填默认：学会并能讲清楚" />
         <label for="pBio">个人简介</label>
         <textarea id="pBio" rows="3" maxlength="300" placeholder="简单介绍一下自己"></textarea>
         <p id="profileMsg" class="hint"></p>
@@ -128,8 +126,8 @@
   </main>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="js/config.js?v=49" defer></script>
-  <script src="js/backend.js?v=49" defer></script>
-  <script src="js/account.js?v=49" defer></script>
+  <script src="js/config.js?v=50" defer></script>
+  <script src="js/backend.js?v=50" defer></script>
+  <script src="js/account.js?v=50" defer></script>
 </body>
 </html>

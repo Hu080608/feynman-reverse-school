@@ -316,7 +316,6 @@ function publicUser(user) {
     username: user.username,
     nickname: user.nickname || user.username,
     gender: user.gender || "",
-    age: user.age || null,
     schoolStage: user.schoolStage || "",
     grade: user.grade || "",
     goal: user.goal || "",
@@ -333,13 +332,6 @@ function buildProfileTags(user) {
   const tags = [];
   const stageMap = { primary: "小学生", junior: "初中生", senior: "高中生", college: "大学生", other: "其他学段" };
   if (stageMap[user.schoolStage]) tags.push(stageMap[user.schoolStage]);
-  if (user.age) {
-    const age = Number(user.age);
-    if (age > 0 && age <= 12) tags.push("少年学习者");
-    else if (age <= 18) tags.push("青少年学习者");
-    else if (age <= 30) tags.push("青年学习者");
-    else tags.push("成年学习者");
-  }
   if (user.goal) tags.push("目标明确");
   if (Number(user.loginCount || 0) >= 5) tags.push("活跃学习者");
   return Array.from(new Set(tags)).slice(0, 8);
@@ -530,7 +522,6 @@ async function handleUserRegister(request, env) {
     passwordVersion: 1,
     nickname: username,
     gender: "",
-    age: null,
     schoolStage: "",
     grade: "",
     goal: "",
@@ -603,20 +594,17 @@ async function handleUserProfileUpdate(request, env) {
   if (!user) return json({ ok: false, error: "UNAUTHORIZED", message: "登录状态已失效，请重新登录。" }, 401, env);
   const nickname = String(body.nickname || "").trim().slice(0, 24);
   const gender = ["", "male", "female", "other"].includes(String(body.gender || "")) ? String(body.gender || "") : "";
-  const ageRaw = body.age === "" || body.age == null ? null : Number(body.age);
-  const age = ageRaw == null ? null : Math.max(1, Math.min(120, Math.round(ageRaw)));
   const schoolStage = ["", "primary", "junior", "senior", "college", "other"].includes(String(body.schoolStage || "")) ? String(body.schoolStage || "") : "";
   const grade = String(body.grade || "").trim().slice(0, 20);
   const goal = String(body.goal || "").trim().slice(0, 120);
   const bio = String(body.bio || "").trim().slice(0, 300);
   user.nickname = nickname || user.username;
   user.gender = gender;
-  user.age = age;
   user.schoolStage = schoolStage;
   user.grade = grade;
   user.goal = goal;
   user.bio = bio;
-  user.profileCompleted = !!(user.age && user.schoolStage);
+  user.profileCompleted = !!user.schoolStage;
   user.updatedAt = Date.now();
   user.profileTags = buildProfileTags(user);
   await kvPutJson(env, "user:id:" + user.id, user, { expirationTtl: 365 * 86400 });
