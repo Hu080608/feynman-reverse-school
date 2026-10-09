@@ -734,9 +734,18 @@ async function handleRedeem(request, env) {
   await kvPutJson(env, usedKey, { jti: payload.jti, usedAt: now, clientId }, { expirationTtl: 60 * 86400 });
 
   try {
+  const redeemUserToken = String(body.userToken || "");
+  const boundUser = redeemUserToken ? await getUserByToken(env, redeemUserToken) : null;
   let session = null;
   let sessionKey = null;
-  if (clientId) {
+  if (boundUser) {
+    const boundToken = await env.LICENSE_KV.get("user:license:" + boundUser.id);
+    if (boundToken) {
+      session = await kvGetJson(env, "session:" + boundToken);
+      sessionKey = "session:" + boundToken;
+    }
+  }
+  if (!session && clientId) {
     const mappedToken = await env.LICENSE_KV.get("client:" + clientId);
     if (mappedToken) {
       session = await kvGetJson(env, "session:" + mappedToken);
@@ -758,8 +767,7 @@ async function handleRedeem(request, env) {
   refreshSession(session, now, session.inConversation);
   await kvPutJson(env, sessionKey, session, { expirationTtl: 90 * 86400 });
   await env.LICENSE_KV.put("code-session:" + payload.jti, session.token, { expirationTtl: 90 * 86400 });
-  const userToken = String(body.userToken || "");
-  if (userToken) await bindLicenseToUser(env, userToken, session.token);
+  if (redeemUserToken) await bindLicenseToUser(env, redeemUserToken, session.token);
   if (clientId) {
     await env.LICENSE_KV.put("client:" + clientId, session.token, { expirationTtl: 90 * 86400 });
   }
