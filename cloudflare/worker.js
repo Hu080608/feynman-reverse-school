@@ -323,6 +323,7 @@ function publicUser(user) {
     goal: user.goal || "",
     bio: user.bio || "",
     profileTags: user.profileTags || [],
+    profileCompleted: !!user.profileCompleted,
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt || null,
     loginCount: user.loginCount || 0
@@ -538,6 +539,7 @@ async function handleUserRegister(request, env) {
     goal: "",
     bio: "",
     profileTags: [],
+    profileCompleted: false,
     createdAt: now,
     updatedAt: now,
     lastLoginAt: now,
@@ -619,6 +621,7 @@ async function handleUserProfileUpdate(request, env) {
   user.subjects = subjects;
   user.goal = goal;
   user.bio = bio;
+  user.profileCompleted = !!(user.age && user.schoolStage && user.subjects && user.goal);
   user.updatedAt = Date.now();
   user.profileTags = buildProfileTags(user);
   await kvPutJson(env, "user:id:" + user.id, user, { expirationTtl: 365 * 86400 });

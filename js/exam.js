@@ -26,14 +26,14 @@
 
   function bind() {
     if (!localStorage.getItem("feynman_user_session")) {
-      location.replace("account.html?force=1&return=chat&v=47");
+      location.replace("account.html?force=1&return=chat&v=48");
       return;
     }
     const st = getAppState();
     const s = getCurrentSession(st);
     const kp = s && s.knowledgePoint ? s.knowledgePoint : "";
     $("examKnowledge").value = kp || "";
-    $("skipExamBtn").addEventListener("click", () => { location.href = "chat.html?v=47"; });
+    $("skipExamBtn").addEventListener("click", () => { location.href = "chat.html?v=48"; });
     $("examForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       if (!st.backendToken) { msg("请先进入对话页，获取学习额度后再参加考核。"); return; }

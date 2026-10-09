@@ -7,7 +7,7 @@
   const params = new URLSearchParams(location.search);
   const force = params.get("force") === "1";
   const returnPage = params.get("return") || "settings";
-  const targetUrl = returnPage === "chat" ? "chat.html?v=47" : "index.html?v=47";
+  const targetUrl = returnPage === "chat" ? "chat.html?v=48" : "index.html?v=48";
 
   function toast(text) {
     const el = $("toast");
@@ -49,6 +49,7 @@
   }
 
   function goBackIfNeeded() {
+    if (currentUser && !currentUser.profileCompleted) return;
     if (!force && !params.get("return")) return;
     setTimeout(() => { location.href = targetUrl; }, 900);
   }
@@ -58,6 +59,8 @@
     try { localStorage.setItem("feynman_user_profile", JSON.stringify(user)); } catch (e) {}
     const notice = $("forceNotice");
     if (notice) notice.classList.toggle("hidden", !force);
+    const profileNotice = $("profileNotice");
+    if (profileNotice) profileNotice.classList.toggle("hidden", !!user.profileCompleted);
     $("authView").classList.add("hidden");
     $("profileView").classList.remove("hidden");
     $("profileTitle").textContent = (user.nickname || user.username || "我的资料") + " 的资料";
@@ -127,7 +130,7 @@
         renderProfile(res.user);
         syncLicenseToApp(res);
         toast(res.licenseToken ? "登录成功，学习额度已同步" : "登录成功");
-        goBackIfNeeded();
+        if (res.user && res.user.profileCompleted) goBackIfNeeded();
       } catch (err) {
         msg("loginMsg", err.message || "登录失败");
       }
@@ -151,8 +154,8 @@
         setToken(res.token);
         renderProfile(res.user);
         syncLicenseToApp(res);
-        toast("注册成功");
-        goBackIfNeeded();
+        toast("注册成功，请先完善资料");
+        if (res.user && res.user.profileCompleted) goBackIfNeeded();
       } catch (err) {
         msg("registerMsg", err.message || "注册失败");
       }
@@ -162,6 +165,14 @@
       e.preventDefault();
       const token = getToken();
       if (!token) { showAuth(false); return; }
+      const age = $("pAge").value.trim();
+      const stage = $("pStage").value;
+      const subjects = $("pSubjects").value.trim();
+      const goal = $("pGoal").value.trim();
+      if (!age || !stage || !subjects || !goal) {
+        msg("profileMsg", "请先填写年龄、学段、关注学科和学习目标。");
+        return;
+      }
       msg("profileMsg", "正在保存...");
       try {
         const res = await B.userProfile(token, {
@@ -176,8 +187,9 @@
         });
         if (!res || !res.ok) throw new Error((res && res.message) || "保存失败");
         renderProfile(res.user);
-        msg("profileMsg", "资料已保存。", true);
+        msg("profileMsg", res.user.profileCompleted ? "资料已保存。" : "资料已保存，但还缺少必填项，请继续完善。", !!res.user.profileCompleted);
         toast("资料已保存");
+        if (res.user.profileCompleted) goBackIfNeeded();
       } catch (err) {
         msg("profileMsg", err.message || "保存失败");
       }

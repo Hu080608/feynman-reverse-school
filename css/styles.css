@@ -472,3 +472,10 @@ body.page-settings .settings-page.settings-v2 > details{
     grid-template-columns:1fr;
   }
 }
+
+/* 按钮统一：button 和 a.btn 外观一致 */
+.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.chat-messages{scroll-behavior:auto!important}
+
+/* 让 a.btn 与 button.btn 完全一致 */
+.chat-head-actions a.btn{display:inline-flex;align-items:center;justify-content:center;height:100%;box-sizing:border-box}
