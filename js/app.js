@@ -156,8 +156,23 @@
   }
   function showChat() {
     if (!canEnterChat()) return;
-    location.href = "chat.html?v=40";
+    location.href = "chat.html?v=41";
   }
+  function bindSettingsTabs() {
+    const tabs = Array.from(document.querySelectorAll("[data-settings-tab]"));
+    const panels = Array.from(document.querySelectorAll("[data-settings-panel]"));
+    if (!tabs.length) return;
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        const key = tab.getAttribute("data-settings-tab");
+        tabs.forEach(t => t.classList.toggle("active", t === tab));
+        panels.forEach(p => p.classList.toggle("active", p.getAttribute("data-settings-panel") === key));
+        if (key === "learn") renderOcrPreview();
+        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
+      });
+    });
+  }
+
   function showSettings() {
     clearReadonlyMode();
     location.href = "index.html";
@@ -185,7 +200,7 @@
     saveState(); renderAll();
     // 历史对话一律只读：不消耗额度，也不能继续发送。
     sessionStorage.setItem("feynman_readonly", "1");
-    location.href = "chat.html?v=40";
+    location.href = "chat.html?v=41";
   }
   function updateControls() {
     const active = backendActive();
@@ -824,7 +839,7 @@
         state.currentSessionId = s.id;
         state.sessions[s.id] = s;
         saveState();
-        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=40"; }
+        if (canEnterChat()) { clearReadonlyMode(); location.href = "chat.html?v=41"; }
         else { renderAll(); toast("请先激活后再开始对话。"); }
       });
     }
@@ -842,7 +857,7 @@
         if (s.endedAt) { toast("该对话已彻底结束，不能继续。请开始新对话。"); return; }
         if (!backendActive()) { toast("当前没有可用时长/次数，请先激活或加时。"); return; }
         clearReadonlyMode();
-        location.href = "chat.html?v=40";
+        location.href = "chat.html?v=41";
       });
     }
     if (els.sessionSelect) els.sessionSelect.addEventListener("change", updateControls);
@@ -976,6 +991,7 @@
     }
     renderAll();
     updateControls();
+    bindSettingsTabs();
     if (backendReady() && state.backendToken) refreshStatus(true).catch(() => {});
     tick();
     setInterval(tick, 1000);

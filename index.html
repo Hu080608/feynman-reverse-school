@@ -4,11 +4,14 @@
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://api.feynman-hsj.top http://127.0.0.1:8787 http://localhost:8787; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>费曼反向学校｜设置与激活</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="css/styles.css?v=40" />
-  <link rel="stylesheet" href="css/responsive.css?v=40" />
-  <link rel="stylesheet" href="css/settings.css?v=1" />
+  <link rel="stylesheet" href="css/styles.css?v=41" />
+  <link rel="stylesheet" href="css/responsive.css?v=41" />
+  <link rel="stylesheet" href="css/settings.css?v=2" />
 </head>
 <body class="page-settings" data-page="settings">
   <header class="topbar">
@@ -34,7 +37,13 @@
       <p class="setup-hint" id="setupHint">请先输入激活码，激活后才可以开始对话。</p>
     </section>
 
-    <div class="s-grid s-grid-main">
+    <nav class="s-tabs">
+      <button class="s-tab active" data-settings-tab="activate">激活账号</button>
+      <button class="s-tab" data-settings-tab="learn">知识点</button>
+      <button class="s-tab" data-settings-tab="records">记录与反馈</button>
+    </nav>
+
+    <section class="s-panel active" data-settings-panel="activate">
       <section class="s-card" id="activationCard">
         <div class="s-badge">第 1 步</div>
         <h2>激活 / 加时</h2>
@@ -54,10 +63,22 @@
         <p id="activationMsg" class="hint"></p>
       </section>
 
+      <section class="s-card s-note">
+        <h2>激活后可以做什么</h2>
+        <ul class="s-list">
+          <li>填写一个你想真正掌握的知识点。</li>
+          <li>把它讲给一个需要被教会的学生听。</li>
+          <li>AI 会追问、犯错、要例子，直到它真的学会。</li>
+          <li>对话页才会计时，离开对话页自动暂停。</li>
+        </ul>
+      </section>
+    </section>
+
+    <section class="s-panel" data-settings-panel="learn">
       <section class="s-card" id="knowledgeCard">
         <div class="s-badge">第 2 步</div>
         <h2>选择知识点</h2>
-        <p class="s-desc">先写清楚这次要讲什么，越具体越好；也可以上传截图自动识别。</p>
+        <p class="s-desc">先写清楚这次要讲什么，越具体越好；也可以上传题目截图自动识别。</p>
         <label for="knowledgePoint">我想讲清楚的知识点</label>
         <textarea id="knowledgePoint" rows="5" placeholder="例如：什么是“沉没成本”？为什么它会影响决策？"></textarea>
 
@@ -80,9 +101,20 @@
         <button id="newChatBtn" class="btn primary full" disabled>开始新对话</button>
         <p class="tiny">点击后进入对话页，AI 学生会先向你提问。</p>
       </section>
-    </div>
 
-    <div class="s-grid s-grid-bottom">
+      <section class="s-card s-note">
+        <h2>讲解建议</h2>
+        <ul class="s-list">
+          <li>先用大白话讲定义。</li>
+          <li>再说清“为什么”或“怎么用”。</li>
+          <li>给一个具体例子。</li>
+          <li>AI 犯错时，纠正它。</li>
+          <li>讲完等它复盘和提问。</li>
+        </ul>
+      </section>
+    </section>
+
+    <section class="s-panel" data-settings-panel="records">
       <section class="s-card">
         <div class="s-badge">记录</div>
         <h2>我的对话记录</h2>
@@ -100,21 +132,7 @@
         <p class="s-desc">遇到问题、想提建议，或者希望增加什么功能，都可以告诉我们。</p>
         <a class="btn primary full" href="feedback.html?from=settings&v=2">去反馈</a>
       </section>
-    </div>
-
-    <details class="advanced s-card">
-      <summary>新手使用说明</summary>
-      <div class="advanced-body">
-        <ol class="guide-list">
-          <li>先激活账号。</li>
-          <li>填写知识点，或上传截图识别。</li>
-          <li>点击“开始新对话”。</li>
-          <li>AI 学生会先提问，你用大白话讲解。</li>
-          <li>它追问、犯错、要例子时，继续把它讲懂。</li>
-          <li>它输出“考试通过”后，本次知识点通关。</li>
-        </ol>
-      </div>
-    </details>
+    </section>
   </main>
 
   <div id="toast" class="toast hidden"></div>
@@ -124,6 +142,6 @@
   <script src="vendor/katex/contrib/auto-render.min.js" defer></script>
   <script src="js/config.js" defer></script>
   <script src="js/backend.js" defer></script>
-  <script src="js/app.js?v=40" defer></script>
+  <script src="js/app.js?v=41" defer></script>
 </body>
 </html>

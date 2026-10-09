@@ -1,65 +1,39 @@
-/* 设置页 v4：独立布局，不再依赖旧单列覆盖 */
-body.page-settings{
-  min-height:100dvh;
-  overflow-y:auto!important;
-}
-.settings-v4{
-  width:100%;
-  max-width:1180px;
-  margin:0 auto;
-  padding:20px 18px 64px;
-}
-.s-hero{
-  background:linear-gradient(180deg,rgba(16,26,48,.96),rgba(11,18,36,.96));
-  border:1px solid var(--line);
-  border-radius:var(--radius);
-  box-shadow:var(--shadow);
-  padding:18px 20px 16px;
-  margin-bottom:16px;
-}
+/* 设置页 v5：标签式面板，桌面双栏，手机单面板 */
+body.page-settings{min-height:100dvh;overflow-y:auto!important}
+.settings-v4{width:100%;max-width:1180px;margin:0 auto;padding:20px 18px 64px}
+.s-hero{background:linear-gradient(180deg,rgba(16,26,48,.96),rgba(11,18,36,.96));border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px 16px;margin-bottom:14px}
 .s-hero h2{font-size:20px;margin-bottom:12px;color:#eef4ff}
-.s-grid{
-  display:grid;
-  gap:16px;
-  margin-bottom:16px;
-  align-items:start;
-}
-.s-grid-main{grid-template-columns:minmax(320px,.85fr) minmax(0,1.35fr)}
-.s-grid-bottom{grid-template-columns:repeat(2,minmax(0,1fr))}
-.s-card{
-  background:linear-gradient(180deg,rgba(16,26,48,.96),rgba(11,18,36,.96));
-  border:1px solid var(--line);
-  border-radius:var(--radius);
-  box-shadow:var(--shadow);
-  padding:18px;
-  min-width:0;
-}
+.s-tabs{display:flex;gap:8px;margin-bottom:14px;padding:5px;border:1px solid var(--line);border-radius:999px;background:rgba(8,13,28,.65);overflow-x:auto}
+.s-tab{flex:1 0 auto;min-width:110px;border:1px solid transparent;background:transparent;color:var(--muted);padding:10px 14px;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer}
+.s-tab.active{background:linear-gradient(135deg,var(--brand),#4f7df3);color:#fff}
+.s-panel{display:none}
+.s-panel.active{display:grid;gap:16px;align-items:start}
+.s-panel.active[data-settings-panel="activate"]{grid-template-columns:minmax(320px,.9fr) minmax(0,1.1fr)}
+.s-panel.active[data-settings-panel="learn"]{grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr)}
+.s-panel.active[data-settings-panel="records"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+.s-card{background:linear-gradient(180deg,rgba(16,26,48,.96),rgba(11,18,36,.96));border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;min-width:0}
 .s-card h2{font-size:17px;margin-bottom:8px;color:#e4ecff}
-.s-card .btn.full{margin-top:12px}
-.s-badge{
-  display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;
-  padding:4px 9px;border-radius:999px;font-size:11px;font-weight:700;
-  color:#c9d8ff;background:rgba(109,140,255,.14);border:1px solid rgba(109,140,255,.3);
-}
+.s-badge{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:700;color:#c9d8ff;background:rgba(109,140,255,.14);border:1px solid rgba(109,140,255,.3)}
 .s-desc{color:var(--muted);font-size:13px;line-height:1.65;margin-bottom:10px}
 .s-subtitle{color:#c9d8ff;font-size:13px;font-weight:700;margin:14px 0 6px}
-.s-tools{
-  margin-top:14px;
-  padding:12px;
-  border:1px dashed rgba(109,140,255,.4);
-  border-radius:14px;
-  background:rgba(8,13,28,.4);
-}
+.s-tools{margin-top:14px;padding:12px;border:1px dashed rgba(109,140,255,.4);border-radius:14px;background:rgba(8,13,28,.4)}
 .s-tools input[type="file"]{background:transparent;border:none;padding:4px 0}
 .s-tools .btn{margin-top:8px}
-.settings-v4 .advanced{margin-bottom:0}
+.s-note{background:linear-gradient(180deg,rgba(13,22,42,.96),rgba(9,15,30,.96));border-style:dashed}
+.s-list{margin:0;padding-left:20px;color:var(--muted);font-size:14px;line-height:2}
+.s-list li{margin:2px 0}
+.settings-v4 .advanced .advanced-body{padding-top:12px}
 @media (max-width:980px){
-  .s-grid-main,
-  .s-grid-bottom{grid-template-columns:1fr}
+  .s-panel.active[data-settings-panel="activate"],
+  .s-panel.active[data-settings-panel="learn"],
+  .s-panel.active[data-settings-panel="records"]{grid-template-columns:1fr}
+  .s-note{display:none}
 }
 @media (max-width:640px){
   .settings-v4{padding:12px 10px 48px}
   .s-hero{padding:15px}
   .s-card{padding:14px}
-  .s-grid{gap:12px;margin-bottom:12px}
+  .s-tabs{position:sticky;top:64px;z-index:20;margin-bottom:12px}
+  .s-tab{min-width:96px;padding:9px 11px;font-size:13px}
+  .s-panel.active{gap:12px}
 }
