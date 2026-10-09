@@ -28,3 +28,13 @@ body.page-account{min-height:100dvh;overflow-y:auto!important}
   .account-page{padding:14px 10px 50px}
   .account-card{padding:16px}
 }
+
+/* 密码小眼睛 */
+.password-wrap{position:relative}
+.password-wrap input{padding-right:46px!important}
+.eye-btn{
+  position:absolute;right:7px;top:50%;transform:translateY(-50%);
+  width:34px;height:34px;padding:0;border:none;border-radius:9px;
+  background:transparent;color:#9fb1dd;font-size:18px;line-height:1;cursor:pointer;
+}
+.eye-btn:hover{background:rgba(109,140,255,.15);color:#eef4ff}

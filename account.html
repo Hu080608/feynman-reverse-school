@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>用户中心｜费曼反向学校</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="css/styles.css?v=46" />
-  <link rel="stylesheet" href="css/responsive.css?v=46" />
+  <link rel="stylesheet" href="css/styles.css?v=47" />
+  <link rel="stylesheet" href="css/responsive.css?v=47" />
   <link rel="stylesheet" href="css/account.css?v=1" />
 </head>
 <body class="page-account">
@@ -33,7 +33,10 @@
         <label for="loginUsername">用户名</label>
         <input id="loginUsername" maxlength="24" autocomplete="username" placeholder="请输入用户名" />
         <label for="loginPassword">密码</label>
-        <input id="loginPassword" type="password" maxlength="64" autocomplete="current-password" placeholder="请输入密码" />
+        <div class="password-wrap">
+          <input id="loginPassword" type="password" maxlength="64" autocomplete="current-password" placeholder="请输入密码" />
+          <button type="button" class="eye-btn" data-eye="loginPassword" aria-label="显示密码">👁</button>
+        </div>
         <p id="loginMsg" class="hint"></p>
         <button class="btn primary full" type="submit">登录</button>
       </form>
@@ -42,9 +45,15 @@
         <label for="regUsername">用户名</label>
         <input id="regUsername" maxlength="24" autocomplete="username" placeholder="3-24 位中文、字母、数字或下划线" />
         <label for="regPassword">密码</label>
-        <input id="regPassword" type="password" maxlength="64" autocomplete="new-password" placeholder="至少 8 位，必须包含字母和数字" />
+        <div class="password-wrap">
+          <input id="regPassword" type="password" maxlength="64" autocomplete="new-password" placeholder="至少 8 位，必须包含字母和数字" />
+          <button type="button" class="eye-btn" data-eye="regPassword" aria-label="显示密码">👁</button>
+        </div>
         <label for="regConfirm">确认密码</label>
-        <input id="regConfirm" type="password" maxlength="64" autocomplete="new-password" placeholder="再次输入密码" />
+        <div class="password-wrap">
+          <input id="regConfirm" type="password" maxlength="64" autocomplete="new-password" placeholder="再次输入密码" />
+          <button type="button" class="eye-btn" data-eye="regConfirm" aria-label="显示密码">👁</button>
+        </div>
         <p id="registerMsg" class="hint"></p>
         <button class="btn primary full" type="submit">注册</button>
       </form>
@@ -98,11 +107,20 @@
         <summary>修改密码</summary>
         <form id="passwordForm">
           <label for="oldPassword">原密码</label>
-          <input id="oldPassword" type="password" maxlength="64" autocomplete="current-password" />
+          <div class="password-wrap">
+            <input id="oldPassword" type="password" maxlength="64" autocomplete="current-password" />
+            <button type="button" class="eye-btn" data-eye="oldPassword" aria-label="显示密码">👁</button>
+          </div>
           <label for="newPassword">新密码</label>
-          <input id="newPassword" type="password" maxlength="64" autocomplete="new-password" placeholder="至少 8 位，包含字母和数字" />
+          <div class="password-wrap">
+            <input id="newPassword" type="password" maxlength="64" autocomplete="new-password" placeholder="至少 8 位，包含字母和数字" />
+            <button type="button" class="eye-btn" data-eye="newPassword" aria-label="显示密码">👁</button>
+          </div>
           <label for="newConfirm">确认新密码</label>
-          <input id="newConfirm" type="password" maxlength="64" autocomplete="new-password" />
+          <div class="password-wrap">
+            <input id="newConfirm" type="password" maxlength="64" autocomplete="new-password" />
+            <button type="button" class="eye-btn" data-eye="newConfirm" aria-label="显示密码">👁</button>
+          </div>
           <p id="passwordMsg" class="hint"></p>
           <button class="btn primary full" type="submit">确认修改</button>
         </form>
@@ -111,8 +129,8 @@
   </main>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="js/config.js?v=46" defer></script>
-  <script src="js/backend.js?v=46" defer></script>
-  <script src="js/account.js?v=46" defer></script>
+  <script src="js/config.js?v=47" defer></script>
+  <script src="js/backend.js?v=47" defer></script>
+  <script src="js/account.js?v=47" defer></script>
 </body>
 </html>

@@ -7,7 +7,7 @@
   const params = new URLSearchParams(location.search);
   const force = params.get("force") === "1";
   const returnPage = params.get("return") || "settings";
-  const targetUrl = returnPage === "chat" ? "chat.html?v=46" : "index.html?v=46";
+  const targetUrl = returnPage === "chat" ? "chat.html?v=47" : "index.html?v=47";
 
   function toast(text) {
     const el = $("toast");
@@ -95,7 +95,21 @@
     }
   }
 
+  function bindPasswordEyes() {
+    Array.from(document.querySelectorAll("[data-eye]")).forEach(btn => {
+      btn.addEventListener("click", () => {
+        const input = document.getElementById(btn.getAttribute("data-eye"));
+        if (!input) return;
+        const show = input.type === "password";
+        input.type = show ? "text" : "password";
+        btn.textContent = show ? "🙈" : "👁";
+        btn.setAttribute("aria-label", show ? "隐藏密码" : "显示密码");
+      });
+    });
+  }
+
   function bind() {
+    bindPasswordEyes();
     $("tabLogin").addEventListener("click", () => showAuth(false));
     $("tabRegister").addEventListener("click", () => showAuth(true));
 
