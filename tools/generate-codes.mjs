@@ -13,7 +13,7 @@
  *   node tools/generate-codes.mjs --pid count_20 --product "次数装·20次" --type count --uses 20 --count 20 --out codes_count.csv
  */
 import { createHmac, randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { existsSync, statSync, appendFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 function parseDuration(input) {
@@ -116,7 +116,15 @@ for (let i = 0; i < batch; i++) {
   console.log(code);
 }
 if (args.out) {
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-  writeFileSync(resolve(String(args.out)), "\uFEFF" + csv, "utf8");
-  console.error("已写入：" + resolve(String(args.out)));
+  const outPath = resolve(String(args.out));
+  const dataRows = rows.slice(1);
+  const dataCsv = dataRows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const exists = existsSync(outPath) && statSync(outPath).size > 0;
+  if (exists) {
+    appendFileSync(outPath, "\n" + dataCsv, "utf8");
+  } else {
+    const headerCsv = rows[0].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    writeFileSync(outPath, "\uFEFF" + headerCsv + "\n" + dataCsv, "utf8");
+  }
+  console.error("已写入：" + outPath);
 }

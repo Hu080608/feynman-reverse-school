@@ -265,8 +265,16 @@ class App(ctk.CTk):
                          duration_seconds or "", uses or "", now, exp, payload["jti"]])
         out_path = self.out.get().strip() or os.path.abspath("codes.csv")
         try:
-            with open(out_path, "w", newline="", encoding="utf-8-sig") as f:
-                csv.writer(f).writerows(rows)
+            exists = os.path.exists(out_path) and os.path.getsize(out_path) > 0
+            if exists:
+                # 追加到已有 CSV，不再覆盖原文件，也不重复写表头
+                with open(out_path, "a", newline="", encoding="utf-8") as f:
+                    csv.writer(f).writerows(rows[1:])
+            else:
+                # 新文件：写 BOM + 表头 + 数据
+                with open(out_path, "w", newline="", encoding="utf-8") as f:
+                    f.write("﻿")
+                    csv.writer(f).writerows(rows)
         except OSError as e:
             return messagebox.showerror("写入失败", str(e))
         self.result.delete("1.0", "end")
